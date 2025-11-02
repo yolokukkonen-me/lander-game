@@ -633,14 +633,14 @@ _onRespawn: function () {
 						Math.sin(radians) * this._thrustPower
 					);
 
-				this._box2dBody.ApplyForce(thrustVector, this._box2dBody.GetWorldCenter());
-				this._box2dBody.SetAwake(true);
+			this._box2dBody.ApplyForce(thrustVector, this._box2dBody.GetWorldCenter());
+			this._box2dBody.SetAwake(true);
 
-				// Reduce fuel
-				this._fuel -= 0.005 * ige._tickDelta;
-				if (this._fuel < 0) {
-					this._fuel = 0;
-				}
+			// Reduce fuel (halved for longer flight time)
+			this._fuel -= 0.0025 * ige._tickDelta;
+			if (this._fuel < 0) {
+				this._fuel = 0;
+			}
 			}
 
 		if (this.controls.drop) {
