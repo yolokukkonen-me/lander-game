@@ -387,16 +387,20 @@ var Player = IgeEntityBox2d.extend({
 		return this;
 	},
 
-	crash: function () {
-		var self = this;
+crash: function () {
+	var self = this;
 
-		this.dropOrb();
+	this.dropOrb();
+	
+	// FIX: Принудительно очищаем состояние для отрисовки линии (на случай гонок)
+	this._carryingOrb = false;
+	this._orbId = null;
 
-		// SERVER: Reset physics and position, set crash state
-		if (ige.isServer) {
-			// Set crash state and sync with clients
-			this._crashed = true;
-			this.streamSync(); // Sync crash state to clients
+	// SERVER: Reset physics and position, set crash state
+	if (ige.isServer) {
+		// Set crash state and sync with clients
+		this._crashed = true;
+		this.streamSync(); // Sync crash state to clients
 			
 			// Stop movement but keep body active (to avoid Box2D errors)
 			if (this._box2dBody) {
@@ -736,25 +740,26 @@ _onRespawn: function () {
 		}
 	}
 		
-		// OPTIMIZED: Draw orb carrying line locally for ALL players based on synced state
-		// Line is NOT sent over network - only _carryingOrb and _orbId are synced
-		// This renders the line on each client independently for better performance
-		if (this._carryingOrb && this._orbId) {
-			// Get orb reference by ID (synced from server)
-			var orb = ige.$(this._orbId);
-			
-			if (orb) {
-				ctx.save();
-					ctx.rotate(-this._rotate.z);
-					ctx.strokeStyle = '#a6fff6';
-					ctx.lineWidth = 2;
-					ctx.beginPath();
-					ctx.moveTo(0, 0);
-					ctx.lineTo(orb._translate.x - this._translate.x, orb._translate.y - this._translate.y);
-					ctx.stroke();
-				ctx.restore();
-			}
+	// OPTIMIZED: Draw orb carrying line locally for ALL players based on synced state
+	// Line is NOT sent over network - only _carryingOrb and _orbId are synced
+	// This renders the line on each client independently for better performance
+	// FIX: Не рисуем линию если корабль crashed или скрыт
+	if (this._carryingOrb && this._orbId && !this._crashed && !this._hidden) {
+		// Get orb reference by ID (synced from server)
+		var orb = ige.$(this._orbId);
+		
+		if (orb) {
+			ctx.save();
+				ctx.rotate(-this._rotate.z);
+				ctx.strokeStyle = '#a6fff6';
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.moveTo(0, 0);
+				ctx.lineTo(orb._translate.x - this._translate.x, orb._translate.y - this._translate.y);
+				ctx.stroke();
+			ctx.restore();
 		}
+	}
 
 			// Update UI only for our player
 			if (isOurPlayer) {
