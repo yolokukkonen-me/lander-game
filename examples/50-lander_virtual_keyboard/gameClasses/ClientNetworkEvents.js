@@ -123,7 +123,6 @@ var ClientNetworkEvents = {
 				ige.client.vp1.camera.trackTranslate(ige.$(data), 40, true); // true = rounding
 				// Зафиксируем стартовый зум после включения слежения (иначе он может сброситься)
 				ige.client.vp1.camera.scaleTo(0.75, 0.75, 0.75);
-				console.log('✅ Camera: instant set to player position, then smooth tracking (40)');
 				
 				// Создаем индикатор направления на ближайший орб
 				ige.client.orbPointer = new OrbPointer()

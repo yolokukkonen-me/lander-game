@@ -50,7 +50,7 @@
 
 ```powershell
 .\start-local.ps1
-# Тестируйте на http://localhost:3000/examples/50-lander_virtual_keyboard/
+# Тестируйте на http://localhost/examples/50-lander_virtual_keyboard/
 .\stop-local.ps1
 ```
 

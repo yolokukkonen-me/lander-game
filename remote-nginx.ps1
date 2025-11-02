@@ -20,17 +20,17 @@ Write-Host "  Action: $Action" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check SSH key
+# Check & 'C:\Windows\System32\OpenSSH\ssh.exe' key
 if (-not (Test-Path $KeyPath)) {
-    Write-Host "ERROR: SSH key not found: $KeyPath" -ForegroundColor Red
+    Write-Host "ERROR: & 'C:\Windows\System32\OpenSSH\ssh.exe' key not found: $KeyPath" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Connecting to server..." -ForegroundColor Green
 try {
-    $testResult = ssh -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
+    $testResult = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
     if ($testResult -notlike "*OK*") {
-        throw "SSH connection failed"
+        throw "& 'C:\Windows\System32\OpenSSH\ssh.exe' connection failed"
     }
     Write-Host "  OK: Connected" -ForegroundColor Green
 } catch {
@@ -44,28 +44,28 @@ Write-Host ""
 try {
     if ($Action -eq "status") {
         Write-Host "=== Nginx Service Status ===" -ForegroundColor Cyan
-        ssh -i $KeyPath "$User@$Server" "sudo systemctl status nginx --no-pager --lines=15"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl status nginx --no-pager --lines=15"
         Write-Host ""
         Write-Host "=== Nginx Configuration Test ===" -ForegroundColor Cyan
-        ssh -i $KeyPath "$User@$Server" "sudo nginx -t 2>&1"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo nginx -t 2>&1"
     }
     elseif ($Action -eq "restart") {
-        ssh -i $KeyPath "$User@$Server" "sudo systemctl restart nginx && sleep 2 && sudo systemctl status nginx --no-pager --lines=15"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl restart nginx && sleep 2 && sudo systemctl status nginx --no-pager --lines=15"
         Write-Host "OK: Nginx restarted" -ForegroundColor Green
     }
     elseif ($Action -eq "reload") {
-        ssh -i $KeyPath "$User@$Server" "sudo nginx -t 2>&1 && sudo systemctl reload nginx"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo nginx -t 2>&1 && sudo systemctl reload nginx"
         Write-Host ""
         Write-Host "OK: Nginx configuration reloaded (no downtime)" -ForegroundColor Green
         Write-Host ""
-        ssh -i $KeyPath "$User@$Server" "sudo systemctl status nginx --no-pager --lines=10"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl status nginx --no-pager --lines=10"
     }
     elseif ($Action -eq "stop") {
-        ssh -i $KeyPath "$User@$Server" "sudo systemctl stop nginx && sudo systemctl status nginx --no-pager --lines=10"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl stop nginx && sudo systemctl status nginx --no-pager --lines=10"
         Write-Host "OK: Nginx stopped" -ForegroundColor Yellow
     }
     elseif ($Action -eq "start") {
-        ssh -i $KeyPath "$User@$Server" "sudo systemctl start nginx && sleep 2 && sudo systemctl status nginx --no-pager --lines=15"
+        & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl start nginx && sleep 2 && sudo systemctl status nginx --no-pager --lines=15"
         Write-Host "OK: Nginx started" -ForegroundColor Green
     }
     Write-Host ""
@@ -81,3 +81,11 @@ try {
     exit 1
 }
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

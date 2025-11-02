@@ -7,7 +7,7 @@
 .\start-local.ps1
 ```
 - Автоматически откроет браузер
-- Игра доступна: http://localhost:3000/examples/50-lander_virtual_keyboard/
+- Игра доступна: http://localhost/examples/50-lander_virtual_keyboard/
 
 ### Остановить сервер
 ```powershell
@@ -58,7 +58,7 @@
 ```
 
 ### 4. Проверить в браузере
-- Откройте: http://localhost:3000/examples/50-lander_virtual_keyboard/
+- Откройте: http://localhost/examples/50-lander_virtual_keyboard/
 - **Жёсткая перезагрузка:** `Ctrl+Shift+R`
 
 ### 5. Задеплоить на сервер
@@ -141,7 +141,7 @@ cd ..\yolo-ide-isogenic-keys.ru
 .\start-local.ps1
 
 # 2. Протестируйте игру
-# http://localhost:3000/examples/50-lander_virtual_keyboard/
+# http://localhost/examples/50-lander_virtual_keyboard/
 
 # 3. Остановите локальный сервер
 .\stop-local.ps1
@@ -271,7 +271,7 @@ git push
 Test-NetConnection -ComputerName localhost -Port 3000
 
 # Проверка через браузер
-start http://localhost:3000/examples/50-lander_virtual_keyboard/
+start http://localhost/examples/50-lander_virtual_keyboard/
 ```
 
 ### Производительность
@@ -288,7 +288,7 @@ start http://localhost:3000/examples/50-lander_virtual_keyboard/
 
 ## 🔗 Полезные ссылки
 
-- **Локальная игра:** http://localhost:3000/examples/50-lander_virtual_keyboard/
+- **Локальная игра:** http://localhost/examples/50-lander_virtual_keyboard/
 - **Продакшн:** http://51.250.30.92/examples/50-lander_virtual_keyboard/
 - **CI/CD инструкция:** [CI-CD-SETUP.md](CI-CD-SETUP.md)
 - **Быстрый старт деплоя:** [QUICK-START.md](QUICK-START.md)

@@ -56,19 +56,12 @@ var ClientTerrain = {
 	terrainPoly.multiply(20);
 	this.terrainPoly = terrainPoly;
 
-	// DEBUG: Log polygon points before triangulation
-	console.log('[CLIENT] Terrain polygon points:', terrainPoly._poly.length);
-	console.log('[CLIENT] First 5 points:', terrainPoly._poly.slice(0, 5));
-	console.log('[CLIENT] Last 5 points:', terrainPoly._poly.slice(-5));
-
 	// Clone the terrain and scale down to box2d level
 	this.terrainTriangles = this.terrainPoly.clone();
 	this.terrainTriangles.divide(ige.box2d._scaleRatio);
 
 	// Turn the terrain into triangles (box2d only allows convex shapes)
 	this.terrainTriangles = this.terrainTriangles.triangulate();
-	
-	console.log('[CLIENT] Triangles count:', this.terrainTriangles.length);
 
 		// Loop the triangles and make fixtures for them
 		fixtureArr = [];

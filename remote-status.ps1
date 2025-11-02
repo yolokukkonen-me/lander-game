@@ -17,17 +17,17 @@ Write-Host "  Server: $Server" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check SSH key
+# Check & 'C:\Windows\System32\OpenSSH\ssh.exe' key
 if (-not (Test-Path $KeyPath)) {
-    Write-Host "ERROR: SSH key not found: $KeyPath" -ForegroundColor Red
+    Write-Host "ERROR: & 'C:\Windows\System32\OpenSSH\ssh.exe' key not found: $KeyPath" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "[1/4] Checking SSH connection..." -ForegroundColor Green
+Write-Host "[1/4] Checking & 'C:\Windows\System32\OpenSSH\ssh.exe' connection..." -ForegroundColor Green
 try {
-    $testResult = ssh -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
+    $testResult = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
     if ($testResult -notlike "*OK*") {
-        throw "SSH connection failed"
+        throw "& 'C:\Windows\System32\OpenSSH\ssh.exe' connection failed"
     }
     Write-Host "  OK: Connected" -ForegroundColor Green
 } catch {
@@ -43,22 +43,22 @@ try {
     
     # Service Status
     Write-Host "=== Service Status ===" -ForegroundColor Cyan
-    ssh -i $KeyPath "$User@$Server" "sudo systemctl status lander --no-pager --lines=15"
+    & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl status lander --no-pager --lines=15"
     Write-Host ""
     
     # Port Status
     Write-Host "=== Port Status ===" -ForegroundColor Cyan
-    $portCheck = ssh -i $KeyPath "$User@$Server" "sudo ss -tulpn | grep ':3000' || echo 'Port 3000 not listening'"
+    $portCheck = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo ss -tulpn | grep ':3000' || echo 'Port 3000 not listening'"
     Write-Host $portCheck
     Write-Host ""
     
     # Recent Logs
     Write-Host "=== Recent Logs (last 5 lines) ===" -ForegroundColor Cyan
-    ssh -i $KeyPath "$User@$Server" "sudo journalctl -u lander --no-pager -n 5 --output=short-precise"
+    & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo journalctl -u lander --no-pager -n 5 --output=short-precise"
     Write-Host ""
     
     # Get full status for decision making
-    $serviceStatus = ssh -i $KeyPath "$User@$Server" "sudo systemctl is-active lander"
+    $serviceStatus = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "sudo systemctl is-active lander"
     
     if ($serviceStatus -eq "active") {
         Write-Host "[3/4] Checking HTTP access..." -ForegroundColor Green
@@ -105,3 +105,11 @@ try {
     exit 1
 }
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

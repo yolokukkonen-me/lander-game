@@ -67,7 +67,8 @@ if ($processes) {
     Write-Host ""
     Write-Host "URLs:" -ForegroundColor Cyan
     Write-Host "  http://localhost:$port" -ForegroundColor White
-    Write-Host "  http://localhost:$port/examples/50-lander_virtual_keyboard/" -ForegroundColor White
+    Write-Host "  Node.js (backend): http://localhost:$port" -ForegroundColor Gray
+    Write-Host "  Game URL:          http://localhost/examples/50-lander_virtual_keyboard/" -ForegroundColor White
     
 } else {
     Write-Host "  No running processes found" -ForegroundColor Red

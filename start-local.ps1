@@ -86,8 +86,8 @@ Write-Host "  SERVER RUNNING" -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Process ID: $($process.Id)" -ForegroundColor White
-Write-Host "  Node.js server: http://localhost:$Port" -ForegroundColor Cyan
-Write-Host "  Game URL (OpenServer): http://localhost/examples/50-lander_virtual_keyboard/" -ForegroundColor Cyan
+Write-Host "  Node.js server: http://localhost:$Port (backend)" -ForegroundColor Gray
+Write-Host "  Game URL: http://localhost/examples/50-lander_virtual_keyboard/" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Commands:" -ForegroundColor Yellow
 Write-Host "  Stop server:    .\stop-local.ps1" -ForegroundColor Gray

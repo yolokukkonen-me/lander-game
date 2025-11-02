@@ -18,7 +18,7 @@
 - Сервер работает в отдельном окне PowerShell
 
 **После запуска:**
-- Игра доступна: http://localhost:3000/examples/50-lander_virtual_keyboard/
+- Игра доступна: http://localhost/examples/50-lander_virtual_keyboard/
 - Логи видны в окне сервера
 - Закройте окно для остановки сервера
 
@@ -83,7 +83,7 @@ Memory: 120 MB
 CPU: 2.5%
 
 SERVER: RUNNING ✓
-Game URL: http://localhost:3000/examples/50-lander_virtual_keyboard/
+Game URL: http://localhost/examples/50-lander_virtual_keyboard/
 ```
 
 ---
@@ -506,7 +506,7 @@ exit
 | Перезапустить | `.\restart-local.ps1` |
 | Проверить статус | `.\status-local.ps1` |
 | Посмотреть логи | `.\logs-local.ps1` |
-| Игра | http://localhost:3000/examples/50-lander_virtual_keyboard/ |
+| Игра | http://localhost/examples/50-lander_virtual_keyboard/ |
 
 ### Удалённый сервер
 

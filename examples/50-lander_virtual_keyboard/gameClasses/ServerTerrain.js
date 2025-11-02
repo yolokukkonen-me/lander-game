@@ -114,9 +114,6 @@ var ServerTerrain = {
 		this.terrainPoly = terrainPoly;
 
 	// DEBUG: Log polygon points before triangulation
-	console.log('[SERVER] Terrain polygon points:', terrainPoly._poly.length);
-	console.log('[SERVER] First 5 points:', terrainPoly._poly.slice(0, 5));
-	console.log('[SERVER] Last 5 points:', terrainPoly._poly.slice(-5));
 
 		// Clone the terrain and scale down to box2d level
 		this.terrainTriangles = this.terrainPoly.clone();
@@ -125,7 +122,6 @@ var ServerTerrain = {
 		// Turn the terrain into triangles (box2d only allows convex shapes)
 		this.terrainTriangles = this.terrainTriangles.triangulate();
 	
-	console.log('[SERVER] Triangles count:', this.terrainTriangles.length);
 
 		// Loop the triangles and make fixtures for them
 		fixtureArr = [];

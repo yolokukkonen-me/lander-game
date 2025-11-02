@@ -1,5 +1,5 @@
 # ============================================================
-# SSH INTO REMOTE SERVER
+# & 'C:\Windows\System32\OpenSSH\ssh.exe' INTO REMOTE SERVER
 # ============================================================
 # Usage: .\remote-ssh.ps1
 
@@ -17,9 +17,9 @@ Write-Host "  Server: $Server" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check SSH key
+# Check & 'C:\Windows\System32\OpenSSH\ssh.exe' key
 if (-not (Test-Path $KeyPath)) {
-    Write-Host "ERROR: SSH key not found: $KeyPath" -ForegroundColor Red
+    Write-Host "ERROR: & 'C:\Windows\System32\OpenSSH\ssh.exe' key not found: $KeyPath" -ForegroundColor Red
     exit 1
 }
 
@@ -34,5 +34,5 @@ Write-Host "  ls -la /opt/ | grep backup      # View backups" -ForegroundColor G
 Write-Host "  exit                            # Disconnect" -ForegroundColor Gray
 Write-Host ""
 
-ssh -i $KeyPath "$User@$Server"
+& 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server"
 

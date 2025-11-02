@@ -24,12 +24,6 @@ var PlayerStatsUI = IgeEntity.extend({
 		var vpWidth = vp._bounds2d.x;
 		var vpHeight = vp._bounds2d.y;
 		
-		// Debug - выводим раз в секунду
-		if (!this._lastDebug || Date.now() - this._lastDebug > 1000) {
-			console.log('🎯 PlayerStatsUI: vpSize=', vpWidth, 'x', vpHeight, 'entitySize=', this._bounds2d.x, 'x', this._bounds2d.y);
-			this._lastDebug = Date.now();
-		}
-		
 		// Позиционируем entity в левом верхнем углу
 		// (0, 0) в ignoreCamera scene - это центр viewport
 		// Левый верхний угол = (-vpWidth/2, -vpHeight/2)

@@ -17,17 +17,17 @@ Write-Host "  Server: $Server" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check SSH key
+# Check & 'C:\Windows\System32\OpenSSH\ssh.exe' key
 if (-not (Test-Path $KeyPath)) {
-    Write-Host "ERROR: SSH key not found: $KeyPath" -ForegroundColor Red
+    Write-Host "ERROR: & 'C:\Windows\System32\OpenSSH\ssh.exe' key not found: $KeyPath" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "[1/2] Connecting to server..." -ForegroundColor Green
 try {
-    $testResult = ssh -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
+    $testResult = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
     if ($testResult -notlike "*OK*") {
-        throw "SSH connection failed"
+        throw "& 'C:\Windows\System32\OpenSSH\ssh.exe' connection failed"
     }
     Write-Host "  OK: Connected" -ForegroundColor Green
 } catch {
@@ -44,7 +44,7 @@ sudo systemctl status lander --no-pager | head -15
 "@
 
 try {
-    $output = ssh -i $KeyPath "$User@$Server" $restartScript
+    $output = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" $restartScript
     Write-Host $output
     
     if ($output -like "*Active: active (running)*") {
@@ -72,3 +72,11 @@ try {
     exit 1
 }
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

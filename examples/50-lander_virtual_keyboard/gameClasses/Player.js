@@ -324,14 +324,7 @@ var Player = IgeEntityBox2d.extend({
             var parsedData = (typeof data === 'string') ? JSON.parse(data) : data;
             this._godMode = parsedData.enabled || false;
             
-            // Визуальная индикация god mode на клиенте
-            if (ige.isClient && this === ige.client.player) {
-                if (this._godMode) {
-                    console.log('🛡️ GOD MODE ENABLED - Invincible!');
-                } else {
-                    console.log('⚔️ God mode disabled - Vulnerable');
-                }
-            }
+            // Визуальная индикация god mode на клиенте (removed logs)
         } else {
             // SERVER: Return current god mode flag
             return JSON.stringify({ enabled: this._godMode || false });
@@ -853,7 +846,6 @@ toggleGodMode: function () {
 	if (!ige.isServer) { return; }
 	
 	this._godMode = !this._godMode;
-	console.log('🛡️ Player ' + this.id() + ' god mode: ' + (this._godMode ? 'ENABLED' : 'DISABLED'));
 	
 	// Sync to client
 	this.streamSync();

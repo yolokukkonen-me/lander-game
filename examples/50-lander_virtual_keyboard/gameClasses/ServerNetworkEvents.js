@@ -144,11 +144,8 @@ var ServerNetworkEvents = {
 
 	// ВРЕМЕННО: Тестовая команда для генерации орбов (клавиша G)
 	_onTestSpawnOrbs: function (data, clientId) {
-		console.log('🟢 [TEST] Client ' + clientId + ' requested orb spawn. Generating 10 orbs...');
 		if (ige.server.spawnRandomOrbs) {
 			ige.server.spawnRandomOrbs(10);
-		} else {
-			console.warn('[TEST] spawnRandomOrbs function not found on server');
 		}
 	},
 

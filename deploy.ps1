@@ -16,6 +16,10 @@ Write-Host "  DEPLOY LANDER TO YANDEX.CLOUD" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
+# SSH and SCP paths
+$SSH = "C:\Windows\System32\OpenSSH\ssh.exe"
+$SCP = "C:\Windows\System32\OpenSSH\scp.exe"
+
 # Check SSH key
 if (-not (Test-Path $KeyPath)) {
     Write-Host "ERROR: SSH key not found: $KeyPath" -ForegroundColor Red
@@ -30,7 +34,7 @@ Write-Host "[2/5] Preparing files for deploy..." -ForegroundColor Green
 # Check connection
 Write-Host "[3/5] Checking SSH connection..." -ForegroundColor Green
 try {
-    $testResult = ssh -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
+    $testResult = & $SSH -i $KeyPath -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$User@$Server" "echo 'OK'" 2>&1
     if ($testResult -notlike "*OK*") {
         throw "SSH connection failed"
     }
@@ -46,20 +50,20 @@ Write-Host "  (this may take a few minutes)" -ForegroundColor Gray
 
 try {
     # Clean temp directory on server
-    ssh -i $KeyPath "$User@$Server" "rm -rf /tmp/lander-deploy && mkdir -p /tmp/lander-deploy"
+    & $SSH -i $KeyPath "$User@$Server" "rm -rf /tmp/lander-deploy && mkdir -p /tmp/lander-deploy"
     
     # Copy main directories
     Write-Host "  -> Copying engine..." -ForegroundColor Gray
-    & scp -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\engine" "$User@${Server}:/tmp/lander-deploy/"
+    & $SCP -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\engine" "$User@${Server}:/tmp/lander-deploy/"
     
     Write-Host "  -> Copying examples..." -ForegroundColor Gray
-    & scp -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\examples" "$User@${Server}:/tmp/lander-deploy/"
+    & $SCP -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\examples" "$User@${Server}:/tmp/lander-deploy/"
     
     Write-Host "  -> Copying server..." -ForegroundColor Gray
-    & scp -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\server" "$User@${Server}:/tmp/lander-deploy/"
+    & $SCP -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\server" "$User@${Server}:/tmp/lander-deploy/"
     
     Write-Host "  -> Copying tools..." -ForegroundColor Gray
-    & scp -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\tools" "$User@${Server}:/tmp/lander-deploy/"
+    & $SCP -i $KeyPath -r -o StrictHostKeyChecking=no "$LocalPath\tools" "$User@${Server}:/tmp/lander-deploy/"
     
     Write-Host "  OK: Files copied" -ForegroundColor Green
 } catch {
@@ -104,7 +108,7 @@ echo "URL: http://51.250.30.92/examples/50-lander_virtual_keyboard/"
 '@
 
 try {
-    ssh -i $KeyPath "$User@$Server" $RemoteScript
+    & $SSH -i $KeyPath "$User@$Server" $RemoteScript
     Write-Host ""
     Write-Host "=============================================" -ForegroundColor Green
     Write-Host "  SUCCESS: DEPLOY COMPLETED!" -ForegroundColor Green
@@ -120,6 +124,6 @@ try {
     Write-Host "ERROR: Deploy failed: $_" -ForegroundColor Red
     Write-Host ""
     Write-Host "Rolling back..." -ForegroundColor Yellow
-    ssh -i $KeyPath "$User@$Server" "sudo systemctl start lander"
+    & $SSH -i $KeyPath "$User@$Server" "sudo systemctl start lander"
     exit 1
 }
