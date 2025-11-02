@@ -9,14 +9,16 @@ var ServerTerrain = {
 
 		this.landingPads = [];
 		this.landingPadPositions = [];
+	this.landingPadIndices = []; // Индексы terrain где находятся landing pads
 		this.orbPositions = [];
 		this.terrain = [];
-		this.orbIdCounter = 0; // Счетчик для уникальных ID орбов
-		this.spawnQueue = []; // Очередь для постепенного спавна орбов
+	this.orbIdCounter = 0; // Счетчик для уникальных ID орбов
+	this.spawnQueue = []; // Очередь для постепенного спавна орбов
 
 		// Create random terrain (only once on server)
 		while (this.landingPadPositions.length < 1 || this.orbPositions.length < 3) {
 			this.landingPadPositions = [];
+			this.landingPadIndices = []; // Сбрасываем индексы при новой генерации
 			this.orbPositions = [];
 			this.terrain = [];
 			this.potentialOrbIndices = []; // Индексы для потенциальных орбов
@@ -36,6 +38,8 @@ var ServerTerrain = {
 						this.landingPadPositions.push(
 							[(i) * 4 * 20 + 40, (this.terrain[i] * 20) - 2, 0]
 						);
+					// КРИТИЧНО: Сохраняем индекс landing pad для точной синхронизации с клиентом
+					this.landingPadIndices.push(i);
 
 						terrainPoly.addPoint(i * 4, this.terrain[i]);
 						terrainPoly.addPoint((i + 1) * 4, this.terrain[i]);
@@ -148,6 +152,7 @@ var ServerTerrain = {
 		this.terrainData = {
 			terrain: this.terrain,
 			landingPadPositions: this.landingPadPositions,
+		landingPadIndices: this.landingPadIndices, // КРИТИЧНО: Для точной синхронизации polygon на клиенте
 			orbPositions: this.orbPositions
 		};
 	},

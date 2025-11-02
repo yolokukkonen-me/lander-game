@@ -19,29 +19,25 @@ var ClientTerrain = {
 		terrainPoly = new IgePoly2d();
 		terrainPoly.addPoint(0, 20);
 
-		var pointAdded = 0;
-		for (i = 0; i < this.terrain.length; i++) {
-			// Check if this is a landing pad position
-			var isLandingPad = false;
-			for (var j = 0; j < this.landingPadPositions.length; j++) {
-				var padX = this.landingPadPositions[j][0];
-				var expectedI = (padX - 40) / (4 * 20);
-				if (Math.abs(i - expectedI) < 0.5) {
-					isLandingPad = true;
-					// Add both points for flat landing pad
-					terrainPoly.addPoint(i * 4, this.terrain[i]);
-					if (i + 1 < this.terrain.length) {
-						terrainPoly.addPoint((i + 1) * 4, this.terrain[i]);
-						i++; // Skip next point
-					}
-					break;
-				}
-			}
-			
-			if (!isLandingPad) {
-				terrainPoly.addPoint(i * 4, this.terrain[i]);
-			}
+	var pointAdded = 0;
+	for (i = 0; i < this.terrain.length; i++) {
+		// КРИТИЧНО: Используем ИНДЕКСЫ от сервера вместо обратного вычисления
+		// Это гарантирует 100% совпадение terrain polygon между сервером и клиентом
+		var isLandingPad = false;
+		if (this.terrainData.landingPadIndices) {
+			// Проверяем по индексу (точное совпадение с сервером)
+			isLandingPad = this.terrainData.landingPadIndices.indexOf(i) !== -1;
 		}
+		
+		if (isLandingPad) {
+			// Add both points for flat landing pad (ТОЧНО как на сервере)
+			terrainPoly.addPoint(i * 4, this.terrain[i]);
+			terrainPoly.addPoint((i + 1) * 4, this.terrain[i]);
+			i++; // Skip next point (ТОЧНО как на сервере)
+		} else {
+			terrainPoly.addPoint(i * 4, this.terrain[i]);
+		}
+	}
 
 		terrainPoly.addPoint(i * 4, 20);
 
