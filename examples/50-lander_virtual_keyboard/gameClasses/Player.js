@@ -48,7 +48,7 @@ var Player = IgeEntityBox2d.extend({
 	}
 
 	// CRITICAL: Define custom stream sections for network sync!
-	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb']);
+	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb', 'justRespawned']);
 
 	// Store fixture definitions for later physics setup
 	if (ige.isServer) {
@@ -304,6 +304,16 @@ var Player = IgeEntityBox2d.extend({
             var orbId = (this._oldOrb && this._oldOrb.id) ? this._oldOrb.id() : null;
             return JSON.stringify({ orbId: orbId });
         }
+    } else if (sectionId === 'justRespawned') {
+        // Handle just respawned flag sync (для блокировки управления и газа после респавна)
+        if (data !== undefined) {
+            // CLIENT: Parse and set just respawned flag
+            var parsedData = (typeof data === 'string') ? JSON.parse(data) : data;
+            this._justRespawned = parsedData.flag || false;
+        } else {
+            // SERVER: Return current just respawned flag
+            return JSON.stringify({ flag: this._justRespawned || false });
+        }
     } else {
 			// The section was not one that we handle here, so pass this
 			// to the super-class streamSectionData() method - it handles
@@ -486,6 +496,7 @@ _showCrashEffect: function () {
 		// Разрешить движение и захват орбов через 3 секунды
 		setTimeout(function() {
 			self._justRespawned = false;
+			self.streamSync(); // Синхронизируем снятие блокировки с клиентом
 		}, 3000);
 		}
 	},
