@@ -24,7 +24,8 @@ jobs:
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          known_hosts: 'unnecessary'
+          if_key_exists: replace
       
       - name: Deploy to server
         env:
@@ -34,28 +35,27 @@ jobs:
           echo "→ Копирование файлов на сервер..."
           
           # Создаем временную директорию на сервере
-          ssh $SERVER_USER@$SERVER_IP "rm -rf /tmp/lander-deploy && mkdir -p /tmp/lander-deploy"
+          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "rm -rf /tmp/lander-deploy && mkdir -p /tmp/lander-deploy"
           
           # Копируем только необходимые файлы
           rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'node_modules' \
             --exclude '.git' \
             --exclude '*.log' \
             --exclude '*.bat' \
             --exclude 'deploy*.sh' \
             --exclude 'deploy.ps1' \
+            --exclude '*.ps1' \
             --exclude 'START-HERE.txt' \
             --exclude 'QUICK-DEPLOY.txt' \
-            --exclude 'README-DEPLOYMENT.md' \
-            --exclude 'DEPLOYMENT-CHECKLIST.md' \
-            --exclude 'RELEASE-NOTES.md' \
-            --exclude 'FIXES.md' \
-            --exclude 'TROUBLESHOOTING.md' \
+            --exclude '*.md' \
             --exclude 'PROJECT-STRUCTURE.txt' \
+            --exclude 'SECRETS-DATA.txt' \
             ./ $SERVER_USER@$SERVER_IP:/tmp/lander-deploy/
           
           echo "→ Применение изменений..."
-          ssh $SERVER_USER@$SERVER_IP << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP << 'ENDSSH'
             set -e
             
             echo "→ Останавливаем сервер..."
