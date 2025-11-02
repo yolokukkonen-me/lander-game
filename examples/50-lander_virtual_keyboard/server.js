@@ -329,7 +329,9 @@ var Server = IgeClass.extend({
 			var slotOffsets = [-30, -10, 10, 30];
 			
 			spawnX = padCenterX + slotOffsets[slotNumber];
-			spawnY = padY - 30; // 30px над платформой
+			// Устанавливаем корабль прямо на платформу: центр корабля на 12px выше центра платформы
+			// Пояснение: top платформы ~ padY - 2.5, половина корабля ~ 10 => ~ padY - 12.5
+			spawnY = Math.round(padY - 12);
 		}
 		
 		return { x: spawnX, y: spawnY };

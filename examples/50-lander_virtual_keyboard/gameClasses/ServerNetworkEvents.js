@@ -60,6 +60,22 @@ var ServerNetworkEvents = {
 				.mount(ige.server.scene1)
 				.setupPhysics(); // Setup physics after position is set
 
+			// Зафиксировать корабль на платформе сразу после создания
+			var player = ige.server.players[clientId];
+			player.rotateTo(0, 0, 0);
+			player._landed = true; // пометить как приземлившийся
+			if (player._box2dBody) {
+				// Обнулить скорости и выставить точную позицию/угол
+				var box2dX = spawnPos.x / ige.box2d._scaleRatio;
+				var box2dY = spawnPos.y / ige.box2d._scaleRatio;
+				player._box2dBody.SetPosition(new ige.box2d.b2Vec2(box2dX, box2dY));
+				player._box2dBody.SetAngle(0);
+				player._box2dBody.SetLinearVelocity(new ige.box2d.b2Vec2(0, 0));
+				player._box2dBody.SetAngularVelocity(0);
+				player._box2dBody.SetAwake(true);
+			}
+			player.streamSync();
+
 			// Сохраняем слот игрока для респавна
 			ige.server.players[clientId]._spawnSlot = playerSlot;
 			

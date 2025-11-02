@@ -494,6 +494,9 @@ _showCrashEffect: function () {
 				this._box2dBody.SetAwake(true);
 			}
 
+			// Помечаем как приземленного при респавне и точно ставим на платформу
+			this._landed = true;
+			
 			// Reset fuel, deduct score, and clear crash state
 			this._fuel = 100;
 			this._score -= 100;
