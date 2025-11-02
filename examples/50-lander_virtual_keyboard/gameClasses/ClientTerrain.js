@@ -39,7 +39,8 @@ var ClientTerrain = {
 		}
 	}
 
-		terrainPoly.addPoint(i * 4, 20);
+	// КРИТИЧНО: Используем фиксированное значение вместо i (которое может отличаться из-за i++)
+	terrainPoly.addPoint(40 * 4, 20);
 
 		// Create landing pads from server data (client-side rendering only, no physics)
 		for (i = 0; i < this.landingPadPositions.length; i++) {
@@ -50,17 +51,24 @@ var ClientTerrain = {
 			this.landingPads.push(landingPad);
 		}
 
-		// Orbs are created on server and streamed to clients (not created here)
+	// Orbs are created on server and streamed to clients (not created here)
 
-		terrainPoly.multiply(20);
-		this.terrainPoly = terrainPoly;
+	terrainPoly.multiply(20);
+	this.terrainPoly = terrainPoly;
 
-		// Clone the terrain and scale down to box2d level
-		this.terrainTriangles = this.terrainPoly.clone();
-		this.terrainTriangles.divide(ige.box2d._scaleRatio);
+	// DEBUG: Log polygon points before triangulation
+	console.log('[CLIENT] Terrain polygon points:', terrainPoly._poly.length);
+	console.log('[CLIENT] First 5 points:', terrainPoly._poly.slice(0, 5));
+	console.log('[CLIENT] Last 5 points:', terrainPoly._poly.slice(-5));
 
-		// Turn the terrain into triangles (box2d only allows convex shapes)
-		this.terrainTriangles = this.terrainTriangles.triangulate();
+	// Clone the terrain and scale down to box2d level
+	this.terrainTriangles = this.terrainPoly.clone();
+	this.terrainTriangles.divide(ige.box2d._scaleRatio);
+
+	// Turn the terrain into triangles (box2d only allows convex shapes)
+	this.terrainTriangles = this.terrainTriangles.triangulate();
+	
+	console.log('[CLIENT] Triangles count:', this.terrainTriangles.length);
 
 		// Loop the triangles and make fixtures for them
 		fixtureArr = [];

@@ -56,10 +56,11 @@ var ServerTerrain = {
 							this.potentialOrbIndices.push(i);
 						}
 					}
-				}
 			}
+		}
 
-			terrainPoly.addPoint(i * 4, 20);
+		// КРИТИЧНО: Используем фиксированное значение вместо i (которое может отличаться из-за i++)
+		terrainPoly.addPoint(40 * 4, 20);
 		
 		// КРИТИЧНО: Генерируем начальные орбы ПОСЛЕ того как все платформы известны
 		// Это позволяет проверить расстояние от платформ
@@ -112,15 +113,22 @@ var ServerTerrain = {
 			));
 		}
 
-		terrainPoly.multiply(20);
-		this.terrainPoly = terrainPoly;
+	terrainPoly.multiply(20);
+	this.terrainPoly = terrainPoly;
 
-		// Clone the terrain and scale down to box2d level
-		this.terrainTriangles = this.terrainPoly.clone();
-		this.terrainTriangles.divide(ige.box2d._scaleRatio);
+	// DEBUG: Log polygon points before triangulation
+	console.log('[SERVER] Terrain polygon points:', terrainPoly._poly.length);
+	console.log('[SERVER] First 5 points:', terrainPoly._poly.slice(0, 5));
+	console.log('[SERVER] Last 5 points:', terrainPoly._poly.slice(-5));
 
-		// Turn the terrain into triangles (box2d only allows convex shapes)
-		this.terrainTriangles = this.terrainTriangles.triangulate();
+	// Clone the terrain and scale down to box2d level
+	this.terrainTriangles = this.terrainPoly.clone();
+	this.terrainTriangles.divide(ige.box2d._scaleRatio);
+
+	// Turn the terrain into triangles (box2d only allows convex shapes)
+	this.terrainTriangles = this.terrainTriangles.triangulate();
+	
+	console.log('[SERVER] Triangles count:', this.terrainTriangles.length);
 
 		// Loop the triangles and make fixtures for them
 		fixtureArr = [];
