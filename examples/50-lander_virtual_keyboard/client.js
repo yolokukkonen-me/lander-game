@@ -125,27 +125,32 @@ var Client = IgeClass.extend({
 					ige.input.mapAction('thrust', ige.input.key.up);
 					ige.input.mapAction('drop', ige.input.key.space);
 					
+					// ВРЕМЕННО: Тестовая команда для генерации орбов (клавиша G)
+					ige.input.mapAction('spawnOrbs', ige.input.key.g);
+					
 					// Focus on canvas to ensure it receives keyboard events
 					if (ige._canvas) {
 						ige._canvas.focus();
 						ige._canvas.setAttribute('tabindex', '1'); // Make canvas focusable
 					}
 
-						// Setup client-side input polling (Isogenic doesn't emit action events, we need to poll!)
-						// Track previous control states
-						self._prevControls = {
-							left: false,
-							right: false,
-							thrust: false,
-							drop: false
-						};
+					// Setup client-side input polling (Isogenic doesn't emit action events, we need to poll!)
+					// Track previous control states
+					self._prevControls = {
+						left: false,
+						right: false,
+						thrust: false,
+						drop: false,
+						spawnOrbs: false // ВРЕМЕННО: для тестирования генерации орбов
+					};
 
-					// Add a behavior that polls input state every frame
-					ige.addBehaviour('clientInputPoll', function () {
-						var leftState = ige.input.actionState('left');
-						var rightState = ige.input.actionState('right');
-						var thrustState = ige.input.actionState('thrust');
-						var dropState = ige.input.actionState('drop');
+				// Add a behavior that polls input state every frame
+				ige.addBehaviour('clientInputPoll', function () {
+					var leftState = ige.input.actionState('left');
+					var rightState = ige.input.actionState('right');
+					var thrustState = ige.input.actionState('thrust');
+					var dropState = ige.input.actionState('drop');
+					var spawnOrbsState = ige.input.actionState('spawnOrbs'); // ВРЕМЕННО
 
 						// Check for state changes and send to server
 						if (leftState !== self._prevControls.left) {
@@ -175,15 +180,24 @@ var Client = IgeClass.extend({
 							self._prevControls.thrust = thrustState;
 						}
 
-						if (dropState !== self._prevControls.drop) {
-							if (dropState) {
-								ige.network.send('playerControlDropDown');
-							} else {
-								ige.network.send('playerControlDropUp');
-							}
-							self._prevControls.drop = dropState;
+					if (dropState !== self._prevControls.drop) {
+						if (dropState) {
+							ige.network.send('playerControlDropDown');
+						} else {
+							ige.network.send('playerControlDropUp');
 						}
-					});
+						self._prevControls.drop = dropState;
+					}
+					
+					// ВРЕМЕННО: Обработка клавиши G для генерации орбов
+					if (spawnOrbsState !== self._prevControls.spawnOrbs) {
+						if (spawnOrbsState) {
+							console.log('🔵 [TEST] Requesting spawn of 10 orbs...');
+							ige.network.send('testSpawnOrbs');
+						}
+						self._prevControls.spawnOrbs = spawnOrbsState;
+					}
+				});
 
 		// Ask the server to create a player entity for us
 		ige.network.send('playerEntity');

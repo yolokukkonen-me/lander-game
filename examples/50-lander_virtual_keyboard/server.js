@@ -46,6 +46,9 @@ var Server = IgeClass.extend({
 						ige.network.define('playerControlRightUp', self._onPlayerRightUp);
 						ige.network.define('playerControlThrustUp', self._onPlayerThrustUp);
 						ige.network.define('playerControlDropUp', self._onPlayerDropUp);
+						
+						// ВРЕМЕННО: Команда для тестирования генерации орбов
+						ige.network.define('testSpawnOrbs', self._onTestSpawnOrbs);
 
 						ige.network.on('connect', self._onPlayerConnect);
 						ige.network.on('disconnect', self._onPlayerDisconnect);
