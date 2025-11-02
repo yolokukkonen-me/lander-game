@@ -472,10 +472,19 @@ _showCrashEffect: function () {
 			// чтобы избежать рассинхронизации позиции клиент-сервер
 			this._justRespawned = true;
 			
-			this.streamSync(); // Sync crash state to clients (will trigger _onRespawn on client)
+			// Принудительная синхронизация позиции (несколько раз для надежности)
+			this.streamSync(); // 1-я отправка
+			
+			var self = this;
+			setTimeout(function() {
+				self.streamSync(); // 2-я отправка через 50ms
+			}, 50);
+			
+			setTimeout(function() {
+				self.streamSync(); // 3-я отправка через 100ms
+			}, 100);
 			
 			// Разрешить движение через 150ms (достаточно для синхронизации)
-			var self = this;
 			setTimeout(function() {
 				self._justRespawned = false;
 			}, 150);
@@ -487,6 +496,31 @@ _onRespawn: function () {
 	if (!ige.isClient) return;
 	
 	var isOurPlayer = (this === ige.client.player);
+	
+	// КРИТИЧНО: Временно отключить интерполяцию для мгновенной синхронизации
+	// Вариант 1: Сбросить буфер интерполяции позиции
+	if (this._translateBuffered) {
+		this._translateBuffered = null;
+	}
+	if (this._rotateBuffered) {
+		this._rotateBuffered = null;
+	}
+	
+	// Вариант 2: Временно отключить renderLatency
+	var oldLatency = null;
+	if (ige.network && ige.network.stream && ige.network.stream._renderLatency !== undefined) {
+		oldLatency = ige.network.stream._renderLatency;
+		ige.network.stream._renderLatency = 0; // Мгновенная синхронизация
+	}
+	
+	// Восстановить renderLatency через 150ms
+	if (oldLatency !== null) {
+		setTimeout(function() {
+			if (ige.network && ige.network.stream) {
+				ige.network.stream._renderLatency = oldLatency;
+			}
+		}, 150);
+	}
 	
 	// Show the ship again after respawn
 	this.show();
