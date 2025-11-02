@@ -466,7 +466,19 @@ _showCrashEffect: function () {
 			this._fuel = 100;
 			this._score -= 100;
 			this._crashed = false;
+			
+			// Устанавливаем флаг "только что респавнился"
+			// Это предотвращает обработку управления на короткое время
+			// чтобы избежать рассинхронизации позиции клиент-сервер
+			this._justRespawned = true;
+			
 			this.streamSync(); // Sync crash state to clients (will trigger _onRespawn on client)
+			
+			// Разрешить движение через 150ms (достаточно для синхронизации)
+			var self = this;
+			setTimeout(function() {
+				self._justRespawned = false;
+			}, 150);
 		}
 	},
 
@@ -496,6 +508,13 @@ _onRespawn: function () {
 	tick: function (ctx) {
 		// Process player controls on the server (ORIGINAL PHYSICS!)
 		if (ige.isServer) {
+			// Игнорировать управление сразу после респавна
+			// Это предотвращает "отбрасывание назад" из-за рассинхронизации клиент-сервер
+			if (this._justRespawned) {
+				// Пропускаем обработку управления, но продолжаем tick для физики
+				return IgeEntityBox2d.prototype.tick.call(this, ctx);
+			}
+			
 			// ORIGINAL: Use SetAngularVelocity (not ApplyTorque!)
 			if (this.controls.left) {
 				this._box2dBody.SetAngularVelocity(-2.5); // Direct velocity set!
