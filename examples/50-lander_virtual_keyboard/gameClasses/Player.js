@@ -541,10 +541,10 @@ _onRespawn: function () {
 	tick: function (ctx) {
 		// Process player controls on the server (ORIGINAL PHYSICS!)
 		if (ige.isServer) {
-			// Игнорировать управление сразу после респавна
-			// Это предотвращает "отбрасывание назад" из-за рассинхронизации клиент-сервер
+			// Игнорировать все управление сразу после респавна (поворот, газ, сброс орбов)
+			// Это предотвращает "отбрасывание назад" и захват далеких орбов из-за рассинхронизации клиент-сервер
 			if (this._justRespawned) {
-				// Пропускаем обработку управления, но продолжаем tick для физики
+				// Пропускаем обработку управления на 3 секунды, но продолжаем tick для физики
 				return IgeEntityBox2d.prototype.tick.call(this, ctx);
 			}
 			
@@ -635,7 +635,8 @@ _onRespawn: function () {
 	}
 	
 	// Control emitter based on thrust state
-	if (this.controls.thrust && this._fuel > 0) {
+	// Блокируем визуальные эффекты газа если игрок только что респавнился
+	if (this.controls.thrust && this._fuel > 0 && !this._justRespawned) {
 		if (this.thrustEmitter && !this.thrustEmitter._started) {
 			this.thrustEmitter.start();
 		}
