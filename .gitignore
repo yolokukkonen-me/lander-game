@@ -21,8 +21,13 @@ desktop.ini
 # Build
 dist/
 build/
-*.min.js
 *.map
+
+# BUT include library minified files (needed for game engine)
+!engine/**/*.min.js
+!**/socket.io.min.js
+!**/three.min.js
+!**/lib_*.min.js
 
 # Deployment
 *.backup.*
