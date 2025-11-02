@@ -1,0 +1,95 @@
+name: Deploy to Yandex.Cloud
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Позволяет запускать вручную
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+      
+      - name: Deploy to server
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          echo "→ Копирование файлов на сервер..."
+          
+          # Создаем временную директорию на сервере
+          ssh $SERVER_USER@$SERVER_IP "rm -rf /tmp/lander-deploy && mkdir -p /tmp/lander-deploy"
+          
+          # Копируем только необходимые файлы
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '*.log' \
+            --exclude '*.bat' \
+            --exclude 'deploy*.sh' \
+            --exclude 'deploy.ps1' \
+            --exclude 'START-HERE.txt' \
+            --exclude 'QUICK-DEPLOY.txt' \
+            --exclude 'README-DEPLOYMENT.md' \
+            --exclude 'DEPLOYMENT-CHECKLIST.md' \
+            --exclude 'RELEASE-NOTES.md' \
+            --exclude 'FIXES.md' \
+            --exclude 'TROUBLESHOOTING.md' \
+            --exclude 'PROJECT-STRUCTURE.txt' \
+            ./ $SERVER_USER@$SERVER_IP:/tmp/lander-deploy/
+          
+          echo "→ Применение изменений..."
+          ssh $SERVER_USER@$SERVER_IP << 'ENDSSH'
+            set -e
+            
+            echo "→ Останавливаем сервер..."
+            sudo systemctl stop lander
+            
+            echo "→ Создаем резервную копию..."
+            sudo cp -r /opt/lander /opt/lander.backup.$(date +%Y%m%d_%H%M%S)
+            
+            echo "→ Обновляем файлы..."
+            sudo rsync -av --delete /tmp/lander-deploy/ /opt/lander/
+            
+            echo "→ Устанавливаем права..."
+            sudo chown -R www-data:www-data /opt/lander
+            sudo chmod -R 755 /opt/lander
+            
+            echo "→ Устанавливаем зависимости..."
+            cd /opt/lander/server
+            sudo npm ci --production
+            
+            echo "→ Запускаем сервер..."
+            sudo systemctl start lander
+            
+            echo "→ Проверяем статус..."
+            sleep 3
+            sudo systemctl status lander --no-pager
+            
+            echo "✓ Деплой завершен!"
+          ENDSSH
+      
+      - name: Test deployment
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+        run: |
+          echo "→ Тестируем доступность..."
+          curl -f http://$SERVER_IP/examples/50-lander_virtual_keyboard/ || exit 1
+          echo "✓ Сервер отвечает!"
+

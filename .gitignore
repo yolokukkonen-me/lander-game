@@ -1,0 +1,44 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Build
+dist/
+build/
+*.min.js
+*.map
+
+# Deployment
+*.backup.*
+deploy-setup.sh
+deploy-ssl.sh
+START-HERE.txt
+QUICK-DEPLOY.txt
+README-DEPLOYMENT.md
+DEPLOYMENT-CHECKLIST.md
+RELEASE-NOTES.md
+FIXES.md
+TROUBLESHOOTING.md
+PROJECT-STRUCTURE.txt
+
+# Windows scripts
+*.bat
+
+# Server files
+.htaccess
