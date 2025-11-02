@@ -134,6 +134,134 @@ var ServerNetworkEvents = {
 		} else {
 			console.warn('[TEST] spawnRandomOrbs function not found on server');
 		}
+	},
+
+	// God mode toggle (клавиша I)
+	_onToggleGodMode: function (data, clientId) {
+		if (ige.server.players[clientId]) {
+			ige.server.players[clientId].toggleGodMode();
+		} else {
+			console.warn('[GOD MODE] Player not found for client ' + clientId);
+		}
+	},
+
+	/**
+	 * Подсчитывает количество реальных игроков (не ботов)
+	 */
+	_countRealPlayers: function () {
+		var count = 0;
+		for (var clientId in ige.server.players) {
+			if (ige.server.players[clientId] && !ige.server.players[clientId]._isBot) {
+				count++;
+			}
+		}
+		return count;
+	},
+
+	/**
+	 * Проверяет нужно ли добавить/удалить ботов
+	 */
+	_manageBots: function () {
+		// ВРЕМЕННО ОТКЛЮЧЕНО: Боты не создаются
+		// Удаляем всех существующих ботов
+		var botIds = [];
+		for (var clientId in ige.server.players) {
+			if (ige.server.players[clientId] && ige.server.players[clientId]._isBot) {
+				botIds.push(clientId);
+			}
+		}
+		
+		// Удаляем всех ботов
+		for (var i = 0; i < botIds.length; i++) {
+			this._removeBot(botIds[i]);
+		}
+		
+		return; // Ранний выход - боты отключены
+		
+		/* ОРИГИНАЛЬНАЯ ЛОГИКА (закомментирована):
+		var realPlayerCount = this._countRealPlayers();
+		var botCount = 0;
+		var botIds = [];
+		
+		// Подсчитываем ботов
+		for (var clientId in ige.server.players) {
+			if (ige.server.players[clientId] && ige.server.players[clientId]._isBot) {
+				botCount++;
+				botIds.push(clientId);
+			}
+		}
+		
+		// Если ровно 1 реальный игрок, добавляем ровно 1 бота
+		if (realPlayerCount === 1) {
+			var targetBots = 1; // Ровно 1 бот
+			
+			// Добавляем бота если его нет
+			if (botCount < targetBots) {
+				this._createBot();
+			}
+			// Удаляем лишних ботов если их больше 1
+			else if (botCount > targetBots) {
+				for (var i = 0; i < botIds.length - targetBots; i++) {
+					this._removeBot(botIds[i]);
+				}
+			}
+		} else {
+			// Если реальных игроков 0, 2 или больше - удаляем всех ботов
+			for (var i = 0; i < botIds.length; i++) {
+				this._removeBot(botIds[i]);
+			}
+		}
+		*/
+	},
+
+	/**
+	 * Создает нового бота
+	 */
+	_createBot: function () {
+		// Генерируем уникальный ID для бота
+		var botId = 'bot_' + Math.random().toString(36).substr(2, 9);
+		
+		// Выделяем слот для бота
+		var playerSlot = ige.server.assignSlot(botId);
+		
+		if (playerSlot === null) {
+			playerSlot = 0; // Fallback
+		}
+		
+		// Получаем позицию спавна для этого слота
+		var spawnPos = ige.server.getSpawnPositionForSlot(playerSlot);
+		
+		// Создаем бота
+		ige.server.players[botId] = new BotPlayer(botId)
+			.streamMode(1) // Enable automatic network streaming
+			.translateTo(spawnPos.x, spawnPos.y, 0)
+			.mount(ige.server.scene1)
+			.setupPhysics(); // Setup physics after position is set
+
+		// Сохраняем слот бота для респавна
+		ige.server.players[botId]._spawnSlot = playerSlot;
+		
+		// Assign player number for color
+		ige.server.players[botId]._playerNumber = playerSlot; 
+		
+		// Push state so clients can colorize immediately
+		ige.server.players[botId].streamSync();
+	},
+
+	/**
+	 * Удаляет бота
+	 */
+	_removeBot: function (botId) {
+		if (ige.server.players[botId] && ige.server.players[botId]._isBot) {
+			// Remove the bot from the game
+			ige.server.players[botId].destroy();
+
+			// Remove the reference to the bot entity
+			delete ige.server.players[botId];
+			
+			// Освобождаем слот бота
+			ige.server.releaseSlot(botId);
+		}
 	}
 };
 

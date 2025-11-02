@@ -31,31 +31,28 @@ var ServerTerrain = {
 				// Generate terrain at lower positions (Y 5-20 = pixels 100-400)
 				this.terrain[i] = Math.floor(Math.random() * 15) + 5;
 
-				if (preVal > 90 && i > 1) {
-					// Platform must be below player spawn (Y > 100)
-					if (this.terrain[i] * 20 > 100 && this.terrain[i] * 20 < 300) {
+			// Проверяем условия для landing pad
+			if (preVal > 90 && i > 1 && this.terrain[i] * 20 > 100 && this.terrain[i] * 20 < 300) {
+				// Создаем landing pad
 						this.terrain[i + 1] = this.terrain[i];
 						this.landingPadPositions.push(
 							[(i) * 4 * 20 + 40, (this.terrain[i] * 20) - 2, 0]
 						);
-					// КРИТИЧНО: Сохраняем индекс landing pad для точной синхронизации с клиентом
-					this.landingPadIndices.push(i);
+				// КРИТИЧНО: Сохраняем индекс landing pad для точной синхронизации с клиентом
+				this.landingPadIndices.push(i);
 
 						terrainPoly.addPoint(i * 4, this.terrain[i]);
 						terrainPoly.addPoint((i + 1) * 4, this.terrain[i]);
 
-						i++;
-					}
+				i++; // Пропускаем следующий индекс
 				} else {
+				// Обычная точка terrain
 					terrainPoly.addPoint(i * 4, this.terrain[i]);
 
-					// Помечаем потенциальные места для орбов (проверим позже после создания платформ)
-					if (preVal > 50) {
-						if (this.terrain[i] * 20 > 150 && i > 2 && i < 39) {
-							// Сохраняем индекс для генерации орбов позже
-							this.potentialOrbIndices.push(i);
-						}
-					}
+				// Помечаем потенциальные места для орбов
+				if (preVal > 50 && this.terrain[i] * 20 > 150 && i > 2 && i < 39) {
+					this.potentialOrbIndices.push(i);
+				}
 			}
 		}
 
@@ -113,20 +110,20 @@ var ServerTerrain = {
 			));
 		}
 
-	terrainPoly.multiply(20);
-	this.terrainPoly = terrainPoly;
+		terrainPoly.multiply(20);
+		this.terrainPoly = terrainPoly;
 
 	// DEBUG: Log polygon points before triangulation
 	console.log('[SERVER] Terrain polygon points:', terrainPoly._poly.length);
 	console.log('[SERVER] First 5 points:', terrainPoly._poly.slice(0, 5));
 	console.log('[SERVER] Last 5 points:', terrainPoly._poly.slice(-5));
 
-	// Clone the terrain and scale down to box2d level
-	this.terrainTriangles = this.terrainPoly.clone();
-	this.terrainTriangles.divide(ige.box2d._scaleRatio);
+		// Clone the terrain and scale down to box2d level
+		this.terrainTriangles = this.terrainPoly.clone();
+		this.terrainTriangles.divide(ige.box2d._scaleRatio);
 
-	// Turn the terrain into triangles (box2d only allows convex shapes)
-	this.terrainTriangles = this.terrainTriangles.triangulate();
+		// Turn the terrain into triangles (box2d only allows convex shapes)
+		this.terrainTriangles = this.terrainTriangles.triangulate();
 	
 	console.log('[SERVER] Triangles count:', this.terrainTriangles.length);
 

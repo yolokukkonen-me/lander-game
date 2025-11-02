@@ -123,10 +123,13 @@ var Client = IgeClass.extend({
 					ige.input.mapAction('left', ige.input.key.left);
 					ige.input.mapAction('right', ige.input.key.right);
 					ige.input.mapAction('thrust', ige.input.key.up);
-					ige.input.mapAction('drop', ige.input.key.space);
-					
-					// ВРЕМЕННО: Тестовая команда для генерации орбов (клавиша G)
-					ige.input.mapAction('spawnOrbs', ige.input.key.g);
+				ige.input.mapAction('drop', ige.input.key.space);
+				
+				// ВРЕМЕННО: Тестовая команда для генерации орбов (клавиша G)
+				ige.input.mapAction('spawnOrbs', ige.input.key.g);
+				
+				// God mode toggle (клавиша I)
+				ige.input.mapAction('toggleGodMode', ige.input.key.i);
 					
 					// Focus on canvas to ensure it receives keyboard events
 					if (ige._canvas) {
@@ -134,15 +137,16 @@ var Client = IgeClass.extend({
 						ige._canvas.setAttribute('tabindex', '1'); // Make canvas focusable
 					}
 
-					// Setup client-side input polling (Isogenic doesn't emit action events, we need to poll!)
-					// Track previous control states
-					self._prevControls = {
-						left: false,
-						right: false,
-						thrust: false,
-						drop: false,
-						spawnOrbs: false // ВРЕМЕННО: для тестирования генерации орбов
-					};
+				// Setup client-side input polling (Isogenic doesn't emit action events, we need to poll!)
+				// Track previous control states
+				self._prevControls = {
+					left: false,
+					right: false,
+					thrust: false,
+					drop: false,
+					spawnOrbs: false, // ВРЕМЕННО: для тестирования генерации орбов
+					toggleGodMode: false // God mode toggle
+				};
 
 				// Add a behavior that polls input state every frame
 				ige.addBehaviour('clientInputPoll', function () {
@@ -189,15 +193,25 @@ var Client = IgeClass.extend({
 						self._prevControls.drop = dropState;
 					}
 					
-					// ВРЕМЕННО: Обработка клавиши G для генерации орбов
-					if (spawnOrbsState !== self._prevControls.spawnOrbs) {
-						if (spawnOrbsState) {
-							console.log('🔵 [TEST] Requesting spawn of 10 orbs...');
-							ige.network.send('testSpawnOrbs');
-						}
-						self._prevControls.spawnOrbs = spawnOrbsState;
+				// ВРЕМЕННО: Обработка клавиши G для генерации орбов
+				if (spawnOrbsState !== self._prevControls.spawnOrbs) {
+					if (spawnOrbsState) {
+						console.log('🔵 [TEST] Requesting spawn of 10 orbs...');
+						ige.network.send('testSpawnOrbs');
 					}
-				});
+					self._prevControls.spawnOrbs = spawnOrbsState;
+				}
+				
+				// God mode toggle (клавиша I)
+				var toggleGodModeState = ige.input.actionState('toggleGodMode');
+				if (toggleGodModeState !== self._prevControls.toggleGodMode) {
+					if (toggleGodModeState) {
+						console.log('🛡️ [GOD MODE] Toggling invincibility...');
+						ige.network.send('toggleGodMode');
+					}
+					self._prevControls.toggleGodMode = toggleGodModeState;
+				}
+			});
 
 		// Ask the server to create a player entity for us
 		ige.network.send('playerEntity');

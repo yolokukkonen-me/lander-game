@@ -17,6 +17,13 @@ var Server = IgeClass.extend({
 		this.implement(ServerNetworkEvents);
 		this.implement(ServerTerrain);
 
+		// НОВЫЙ КОД: Проверяем ботов каждые 3 секунды
+		setInterval(function() {
+			if (ige && ige.server && ige.server._manageBots) {
+				ige.server._manageBots();
+			}
+		}, 3000);
+
 	// Add physics and setup physics world
 	ige.addComponent(IgeBox2dComponent)
 		.box2d.sleep(true)
@@ -45,12 +52,15 @@ var Server = IgeClass.extend({
 						ige.network.define('playerControlLeftUp', self._onPlayerLeftUp);
 						ige.network.define('playerControlRightUp', self._onPlayerRightUp);
 						ige.network.define('playerControlThrustUp', self._onPlayerThrustUp);
-						ige.network.define('playerControlDropUp', self._onPlayerDropUp);
-						
-						// ВРЕМЕННО: Команда для тестирования генерации орбов
-						ige.network.define('testSpawnOrbs', self._onTestSpawnOrbs);
+					ige.network.define('playerControlDropUp', self._onPlayerDropUp);
+					
+					// ВРЕМЕННО: Команда для тестирования генерации орбов
+					ige.network.define('testSpawnOrbs', self._onTestSpawnOrbs);
+					
+					// God mode toggle command
+					ige.network.define('toggleGodMode', self._onToggleGodMode);
 
-						ige.network.on('connect', self._onPlayerConnect);
+					ige.network.on('connect', self._onPlayerConnect);
 						ige.network.on('disconnect', self._onPlayerDisconnect);
 
 		// Add the network stream component
@@ -159,12 +169,14 @@ var Server = IgeClass.extend({
 								}
 							}
 
-							if (!player) return; // No player involved in this contact
+						if (!player) return; // No player involved in this contact
 
-							// Floor collision (crash)
-							if (contact.igeEitherCategory('floor') && contact.igeEitherCategory('ship')) {
+						// Floor collision (crash) - unless god mode is enabled
+						if (contact.igeEitherCategory('floor') && contact.igeEitherCategory('ship')) {
+							if (!player._godMode) {
 								player.crash();
-							} 
+							}
+						}
 						// Landing pad collision
 						else if (contact.igeEitherCategory('landingPad') && contact.igeEitherCategory('ship')) {
 							// Clear old orb data (игрок теперь может снова подобрать любой орб)
@@ -183,13 +195,16 @@ var Server = IgeClass.extend({
 									degrees -= (360 * wound);
 								}
 
-								player._rotate.z = Math.radians(degrees);
+							player._rotate.z = Math.radians(degrees);
 
-							if (degrees > 30 || degrees < -30) {
+						if (degrees > 30 || degrees < -30) {
+							// Crash unless god mode is enabled
+							if (!player._godMode) {
 								player.crash();
-					} else {
-						player._landed = true;
-					}
+							}
+				} else {
+					player._landed = true;
+				}
 						}
 							// Orb pickup (sensor collision)
                             else if (!player._carryingOrb && contact.igeEitherCategory('orb') && contact.igeEitherCategory('ship')) {

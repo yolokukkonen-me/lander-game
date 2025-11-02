@@ -12,6 +12,9 @@ var Player = IgeEntityBox2d.extend({
 	
 	// Initialize crash state (will be synced via streamSections)
 	self._crashed = false;
+	
+	// God mode flag (invincibility)
+	self._godMode = false;
 
 	// Initialize orb carrying state (will be synced via streamSections for network optimization)
 	self._carryingOrb = false;
@@ -48,7 +51,7 @@ var Player = IgeEntityBox2d.extend({
 	}
 
 	// CRITICAL: Define custom stream sections for network sync!
-	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb', 'justRespawned']);
+	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb', 'justRespawned', 'godMode']);
 
 	// Store fixture definitions for later physics setup
 	if (ige.isServer) {
@@ -313,6 +316,25 @@ var Player = IgeEntityBox2d.extend({
         } else {
             // SERVER: Return current just respawned flag
             return JSON.stringify({ flag: this._justRespawned || false });
+        }
+    } else if (sectionId === 'godMode') {
+        // Handle god mode flag sync (неуязвимость)
+        if (data !== undefined) {
+            // CLIENT: Parse and set god mode flag
+            var parsedData = (typeof data === 'string') ? JSON.parse(data) : data;
+            this._godMode = parsedData.enabled || false;
+            
+            // Визуальная индикация god mode на клиенте
+            if (ige.isClient && this === ige.client.player) {
+                if (this._godMode) {
+                    console.log('🛡️ GOD MODE ENABLED - Invincible!');
+                } else {
+                    console.log('⚔️ God mode disabled - Vulnerable');
+                }
+            }
+        } else {
+            // SERVER: Return current god mode flag
+            return JSON.stringify({ enabled: this._godMode || false });
         }
     } else {
 			// The section was not one that we handle here, so pass this
@@ -811,13 +833,27 @@ dropOrb: function () {
 			[255, 74, 170, 0.6]    // 7 - Pink
 		];
 
-		var colorRGBA = colors[this._playerNumber % colors.length];
-		this._shipColor = 'rgba(' + colorRGBA[0] + ',' + colorRGBA[1] + ',' + colorRGBA[2] + ',' + colorRGBA[3] + ')';
-	},
+	var colorRGBA = colors[this._playerNumber % colors.length];
+	this._shipColor = 'rgba(' + colorRGBA[0] + ',' + colorRGBA[1] + ',' + colorRGBA[2] + ',' + colorRGBA[3] + ')';
+},
 
-	/**
-	 * Override rendering to apply color tint per player
-	 */
+/**
+ * Toggle god mode (invincibility)
+ * Server-side only
+ */
+toggleGodMode: function () {
+	if (!ige.isServer) { return; }
+	
+	this._godMode = !this._godMode;
+	console.log('🛡️ Player ' + this.id() + ' god mode: ' + (this._godMode ? 'ENABLED' : 'DISABLED'));
+	
+	// Sync to client
+	this.streamSync();
+},
+
+/**
+ * Override rendering to apply color tint per player
+ */
 	_renderEntity: function (ctx, doneBefore) {
 		// Draw base entity
 		IgeEntityBox2d.prototype._renderEntity.call(this, ctx, doneBefore);
