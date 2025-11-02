@@ -19,6 +19,7 @@ var ServerTerrain = {
 			this.landingPadPositions = [];
 			this.orbPositions = [];
 			this.terrain = [];
+			this.potentialOrbIndices = []; // Индексы для потенциальных орбов
 
 			terrainPoly = new IgePoly2d();
 			terrainPoly.addPoint(0, 20);
@@ -44,17 +45,38 @@ var ServerTerrain = {
 				} else {
 					terrainPoly.addPoint(i * 4, this.terrain[i]);
 
+					// Помечаем потенциальные места для орбов (проверим позже после создания платформ)
 					if (preVal > 50) {
 						if (this.terrain[i] * 20 > 150 && i > 2 && i < 39) {
-							this.orbPositions.push(
-								[(i) * 4 * 20, (this.terrain[i] * 20) - 20, 0]
-							);
+							// Сохраняем индекс для генерации орбов позже
+							this.potentialOrbIndices.push(i);
 						}
 					}
 				}
 			}
 
 			terrainPoly.addPoint(i * 4, 20);
+		
+		// КРИТИЧНО: Генерируем начальные орбы ПОСЛЕ того как все платформы известны
+		// Это позволяет проверить расстояние от платформ
+		// ВАЖНО: Внутри цикла while, чтобы цикл мог проверить количество орбов
+		for (i = 0; i < this.potentialOrbIndices.length; i++) {
+			var terrainIdx = this.potentialOrbIndices[i];
+			var orbX = terrainIdx * 4 * 20;
+			var terrainY = this.terrain[terrainIdx] * 20;
+			
+			// Случайная высота над поверхностью (50-150 пикселей)
+			var heightAboveTerrain = Math.floor(Math.random() * 100) + 50;
+			var orbY = terrainY - heightAboveTerrain;
+			
+			// Проверяем что орб будет над поверхностью (минимум 30px запас)
+			if (orbY < terrainY - 30) {
+				// КРИТИЧНО: Проверяем что орб НЕ рядом с платформой
+				if (!this.isTooCloseToLandingPad(orbX, orbY)) {
+					this.orbPositions.push([orbX, orbY, 0]);
+				}
+			}
+		}
 		}
 
 		// Loop the landing pads and mount them to the scene
@@ -77,6 +99,13 @@ var ServerTerrain = {
 				.streamMode(1) // Stream to clients
 				.mount(ige.server.scene1)
 				.setupPhysics(); // Setup physics after position is set
+			
+			// Сохраняем начальную позицию для расчета бонуса за расстояние
+			orb.originalStart(new IgePoint3d(
+				this.orbPositions[i][0],
+				this.orbPositions[i][1],
+				this.orbPositions[i][2] || 0
+			));
 		}
 
 		terrainPoly.multiply(20);
@@ -115,16 +144,12 @@ var ServerTerrain = {
 				fixtures: fixtureArr
 			});
 
-		console.log('Server terrain created with ' + this.landingPadPositions.length + ' landing pads and ' + this.orbPositions.length + ' orbs');
-
 		// Store terrain data for sending to new clients
 		this.terrainData = {
 			terrain: this.terrain,
 			landingPadPositions: this.landingPadPositions,
 			orbPositions: this.orbPositions
 		};
-
-		console.log('Terrain data stored and ready to send to clients');
 	},
 
 	/**
@@ -163,30 +188,56 @@ var ServerTerrain = {
 	},
 
 	/**
+	 * Получает высоту карты (Y координату поверхности) в конкретной точке X
+	 * @param {number} x - X координата в пикселях
+	 * @returns {number} Y координата поверхности в пикселях
+	 */
+	getTerrainHeightAtX: function (x) {
+		if (!this.terrain || this.terrain.length === 0) {
+			return 0;
+		}
+
+		// Конвертируем X из пикселей в индекс terrain массива
+		// Каждый сегмент terrain = 4 единицы * 20 пикселей = 80 пикселей ширины
+		var terrainIndex = Math.floor(x / (4 * 20));
+		
+		// Убедимся что индекс в пределах массива
+		if (terrainIndex < 0) terrainIndex = 0;
+		if (terrainIndex >= this.terrain.length) terrainIndex = this.terrain.length - 1;
+		
+		// Возвращаем высоту в пикселях (terrain значения * 20)
+		return this.terrain[terrainIndex] * 20;
+	},
+
+	/**
 	 * Проверяет, находится ли позиция слишком близко к платформе
+	 * Учитывает реальные размеры платформы и добавляет безопасный отступ
 	 */
 	isTooCloseToLandingPad: function (x, y) {
+		// Константы из LandingPad.js
+		var LANDING_PAD_WIDTH = 80;  // Ширина платформы
+		var LANDING_PAD_HEIGHT = 5;  // Высота платформы
+		
 		// Радиус сенсора захвата орба из Player.js (строка 105): radius: 60
-		// Это уже Box2D единицы (метры в Box2D системе координат)
-		// В IGE: 1 Box2D метр = scaleRatio пикселей (обычно 40)
-		// Значит 60 Box2D единиц нужно умножить на scaleRatio
-		// НО в реальности это значение кажется слишком большим (2400px),
-		// поэтому используем просто 60 как есть (возможно уже в условных пикселях)
 		var ORB_PICKUP_RADIUS = 60; // Радиус сенсора захвата
 		
-		// Расстояние от платформы = радиус захвата × 1.5
-		var MIN_DISTANCE_TO_PAD = ORB_PICKUP_RADIUS * 1.5; // = 90 пикселей
+		// Отступ от платформы = радиус захвата × 1.5
+		var SAFETY_MARGIN = ORB_PICKUP_RADIUS * 1.5; // = 90 пикселей
 		
+		// Проверяем каждую платформу
 		for (var i = 0; i < this.landingPadPositions.length; i++) {
-			var padX = this.landingPadPositions[i][0];
-			var padY = this.landingPadPositions[i][1];
+			var padCenterX = this.landingPadPositions[i][0];
+			var padCenterY = this.landingPadPositions[i][1];
 			
-			var distX = x - padX;
-			var distY = y - padY;
-			var distance = Math.sqrt(distX * distX + distY * distY);
+			// Вычисляем границы платформы с учетом безопасного отступа
+			var padLeft = padCenterX - (LANDING_PAD_WIDTH / 2) - SAFETY_MARGIN;
+			var padRight = padCenterX + (LANDING_PAD_WIDTH / 2) + SAFETY_MARGIN;
+			var padTop = padCenterY - (LANDING_PAD_HEIGHT / 2) - SAFETY_MARGIN;
+			var padBottom = padCenterY + (LANDING_PAD_HEIGHT / 2) + SAFETY_MARGIN;
 			
-			if (distance < MIN_DISTANCE_TO_PAD) {
-				return true;
+			// Проверяем, попадает ли точка (x, y) в зону безопасности вокруг платформы
+			if (x >= padLeft && x <= padRight && y >= padTop && y <= padBottom) {
+				return true; // Орб слишком близко к платформе
 			}
 		}
 		
@@ -247,14 +298,15 @@ var ServerTerrain = {
 			// Выбираем случайную позицию на местности
 			// Избегаем краев (индексы 2-37 из 40)
 			var terrainIndex = Math.floor(Math.random() * 35) + 2;
-			var terrainHeight = this.terrain[terrainIndex];
-			var terrainY = terrainHeight * 20;
+			var orbX = terrainIndex * 4 * 20;
+			
+			// КРИТИЧНО: Получаем РЕАЛЬНУЮ высоту карты в точке X
+			var terrainY = this.getTerrainHeightAtX(orbX);
 
 			// Случайная высота над поверхностью (от 30 до 200 пикселей)
 			// ВАЖНО: орб должен быть ВЫШЕ (меньше по Y) чем поверхность
 			var heightAboveTerrain = Math.floor(Math.random() * 170) + 30;
 			
-			var orbX = terrainIndex * 4 * 20;
 			var orbY = terrainY - heightAboveTerrain; // Вычитаем, чтобы орб был ВЫШЕ
 			var orbZ = 0;
 
@@ -264,9 +316,10 @@ var ServerTerrain = {
 				continue;
 			}
 
-			// 2. Орб должен быть СТРОГО выше поверхности (orbY < terrainY)
-			if (orbY >= terrainY - 10) {
-				continue; // Орб слишком близко или внутри карты
+			// 2. Орб должен быть СТРОГО выше поверхности (с минимальным зазором 30px)
+			// Это гарантирует что орб не окажется внутри карты
+			if (orbY >= terrainY - 30) {
+				continue; // Орб слишком близко к поверхности
 			}
 
 			// 3. Местность не должна быть слишком низкой
@@ -296,7 +349,6 @@ var ServerTerrain = {
 			// Сохраняем начальную позицию орба для расчета бонуса за расстояние
 			orb.originalStart(new IgePoint3d(orbX, orbY, orbZ));
 
-			console.log('Spawned orb #' + (this.orbIdCounter - 1) + ' at position: (' + orbX + ', ' + orbY + '), ' + heightAboveTerrain + 'px above terrain (terrainY: ' + terrainY + ')');
 			return true;
 		}
 
@@ -313,8 +365,6 @@ var ServerTerrain = {
 			console.warn('Cannot spawn orbs: terrain not initialized');
 			return;
 		}
-
-		console.log('Starting gradual spawn of ' + count + ' new orbs (1 per second)...');
 
 		// Инициализируем очередь спавна если её нет
 		if (!this.spawnQueue) {
@@ -346,10 +396,6 @@ var ServerTerrain = {
 			
 			// Удаляем из очереди независимо от успеха
 			this.spawnQueue.shift();
-			
-			if (this.spawnQueue.length > 0) {
-				console.log('Orbs remaining in spawn queue: ' + this.spawnQueue.length);
-			}
 		}
 	},
 
@@ -361,7 +407,6 @@ var ServerTerrain = {
 		
 		// Если орбов меньше 10, генерируем еще 10
 		if (activeOrbs < 10) {
-			console.log('Only ' + activeOrbs + ' orbs remaining. Spawning 10 more...');
 			this.spawnRandomOrbs(10);
 		}
 	}
