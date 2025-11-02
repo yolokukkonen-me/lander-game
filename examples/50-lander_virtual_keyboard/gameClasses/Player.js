@@ -468,7 +468,7 @@ _showCrashEffect: function () {
 			this._crashed = false;
 			
 		// Устанавливаем флаг "только что респавнился"
-		// Это блокирует управление на 1 секунду для стабилизации позиции
+		// Это блокирует управление и захват орбов на 3 секунды для стабилизации позиции
 		this._justRespawned = true;
 		
 		// Принудительная синхронизация позиции (несколько раз для надежности)
@@ -483,10 +483,10 @@ _showCrashEffect: function () {
 			self.streamSync(); // 3-я отправка через 100ms
 		}, 100);
 		
-		// Разрешить движение через 1 секунду
+		// Разрешить движение и захват орбов через 3 секунды
 		setTimeout(function() {
 			self._justRespawned = false;
-		}, 1000);
+		}, 3000);
 		}
 	},
 
@@ -512,13 +512,13 @@ _onRespawn: function () {
 		ige.network.stream._renderLatency = 0; // Мгновенная синхронизация
 	}
 	
-	// Восстановить renderLatency через 1 секунду (синхронно с разблокировкой управления на сервере)
+	// Восстановить renderLatency через 3 секунды (синхронно с разблокировкой управления на сервере)
 	if (oldLatency !== null) {
 		setTimeout(function() {
 			if (ige.network && ige.network.stream) {
 				ige.network.stream._renderLatency = oldLatency;
 			}
-		}, 1000);
+		}, 3000);
 	}
 	
 	// Show the ship again after respawn
