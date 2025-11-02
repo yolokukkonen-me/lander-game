@@ -86,8 +86,8 @@ Write-Host "  SERVER RUNNING" -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Process ID: $($process.Id)" -ForegroundColor White
-Write-Host "  Local URL: http://localhost:$Port" -ForegroundColor Cyan
-Write-Host "  Game URL: http://localhost:$Port/examples/50-lander_virtual_keyboard/" -ForegroundColor Cyan
+Write-Host "  Node.js server: http://localhost:$Port" -ForegroundColor Cyan
+Write-Host "  Game URL (OpenServer): http://localhost/examples/50-lander_virtual_keyboard/" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Commands:" -ForegroundColor Yellow
 Write-Host "  Stop server:    .\stop-local.ps1" -ForegroundColor Gray
@@ -97,8 +97,8 @@ Write-Host ""
 Write-Host "Opening browser in 3 seconds..." -ForegroundColor Gray
 Start-Sleep -Seconds 3
 
-# Open browser
-Start-Process "http://localhost:$Port/examples/50-lander_virtual_keyboard/"
+# Open browser on OpenServer port 80 (not Node.js port 3000)
+Start-Process "http://localhost/examples/50-lander_virtual_keyboard/"
 
 Write-Host "Server logs visible in the opened terminal window" -ForegroundColor Gray
 

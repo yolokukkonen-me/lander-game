@@ -546,6 +546,60 @@ _onRespawn: function () {
 			.translateTo(this._translate.x, this._translate.y + 50, 0)
 			.mount(ige.client.objectScene)
 			.start();
+		
+		var self = this;
+		
+		// Show countdown "3" after small delay to ensure position is updated
+		setTimeout(function() {
+			if (self._translate) {
+				new ClientScore('3')
+					.width(240)
+					.height(55)
+					.colorOverlay('#ffff00')
+					.translateTo(self._translate.x, self._translate.y + 15, 0)
+					.mount(ige.client.objectScene)
+					.start();
+			}
+		}, 100);
+		
+		// Show countdown "2" after 1 second
+		setTimeout(function() {
+			if (self._translate) {
+				new ClientScore('2')
+					.width(240)
+					.height(55)
+					.colorOverlay('#ffff00')
+					.translateTo(self._translate.x, self._translate.y + 15, 0)
+					.mount(ige.client.objectScene)
+					.start();
+			}
+		}, 1000);
+		
+		// Show countdown "1" after 2 seconds
+		setTimeout(function() {
+			if (self._translate) {
+				new ClientScore('1')
+					.width(240)
+					.height(55)
+					.colorOverlay('#ffff00')
+					.translateTo(self._translate.x, self._translate.y + 15, 0)
+					.mount(ige.client.objectScene)
+					.start();
+			}
+		}, 2000);
+		
+		// Show "GO" message after 3 seconds when controls unlock
+		setTimeout(function() {
+			if (self._translate) {
+				new ClientScore('GO')
+					.width(120)
+					.height(28)
+					.colorOverlay('#00ff00')
+					.translateTo(self._translate.x, self._translate.y + 15, 0)
+					.mount(ige.client.objectScene)
+					.start();
+			}
+		}, 3000);
 	}
 },
 

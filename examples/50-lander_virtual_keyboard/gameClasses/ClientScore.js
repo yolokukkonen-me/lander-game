@@ -24,14 +24,14 @@ var ClientScore = IgeFontEntity.extend({
 		this.show();
 
 		this._translate.tween()
-			.duration(3000)
+			.duration(1000)
 			.properties({
-				y: this._translate.y - 100
+				y: this._translate.y - 50
 			})
 			.easing('outElastic')
 			.afterTween(function () {
 				self.tween()
-					.duration(500)
+					.duration(200)
 					.properties({
 						_opacity: 0
 					})
@@ -43,7 +43,7 @@ var ClientScore = IgeFontEntity.extend({
 			.start();
 
 		this._rotate.tween()
-			.duration(2000)
+			.duration(800)
 			.properties({z: Math.radians(360)})
 			.easing('outElastic')
 			.start();
