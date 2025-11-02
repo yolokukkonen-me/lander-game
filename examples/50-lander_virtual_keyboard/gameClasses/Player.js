@@ -687,8 +687,8 @@ _onRespawn: function () {
 	},
 
 carryOrb: function (orb, contact) {
-    // Do not allow pickup while landed
-    if (this._landed) { return; }
+    // Do not allow pickup while landed OR just respawned
+    if (this._landed || this._justRespawned) { return; }
     if (!this._oldOrb || (this._oldOrb !== orb)) {
 		var distanceJointDef = new ige.box2d.b2DistanceJointDef(),
 			bodyA = contact.m_fixtureA.m_body,
