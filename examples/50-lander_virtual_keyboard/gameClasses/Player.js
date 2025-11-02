@@ -467,27 +467,26 @@ _showCrashEffect: function () {
 			this._score -= 100;
 			this._crashed = false;
 			
-			// Устанавливаем флаг "только что респавнился"
-			// Это предотвращает обработку управления на короткое время
-			// чтобы избежать рассинхронизации позиции клиент-сервер
-			this._justRespawned = true;
-			
-			// Принудительная синхронизация позиции (несколько раз для надежности)
-			this.streamSync(); // 1-я отправка
-			
-			var self = this;
-			setTimeout(function() {
-				self.streamSync(); // 2-я отправка через 50ms
-			}, 50);
-			
-			setTimeout(function() {
-				self.streamSync(); // 3-я отправка через 100ms
-			}, 100);
-			
-			// Разрешить движение через 150ms (достаточно для синхронизации)
-			setTimeout(function() {
-				self._justRespawned = false;
-			}, 150);
+		// Устанавливаем флаг "только что респавнился"
+		// Это блокирует управление на 1 секунду для стабилизации позиции
+		this._justRespawned = true;
+		
+		// Принудительная синхронизация позиции (несколько раз для надежности)
+		this.streamSync(); // 1-я отправка
+		
+		var self = this;
+		setTimeout(function() {
+			self.streamSync(); // 2-я отправка через 50ms
+		}, 50);
+		
+		setTimeout(function() {
+			self.streamSync(); // 3-я отправка через 100ms
+		}, 100);
+		
+		// Разрешить движение через 1 секунду
+		setTimeout(function() {
+			self._justRespawned = false;
+		}, 1000);
 		}
 	},
 
@@ -513,13 +512,13 @@ _onRespawn: function () {
 		ige.network.stream._renderLatency = 0; // Мгновенная синхронизация
 	}
 	
-	// Восстановить renderLatency через 150ms
+	// Восстановить renderLatency через 1 секунду (синхронно с разблокировкой управления на сервере)
 	if (oldLatency !== null) {
 		setTimeout(function() {
 			if (ige.network && ige.network.stream) {
 				ige.network.stream._renderLatency = oldLatency;
 			}
-		}, 150);
+		}, 1000);
 	}
 	
 	// Show the ship again after respawn
