@@ -1,22 +1,25 @@
+// Version for cache busting on mobile devices
+var igeVersion = '20251102001';
+
 var igeClientConfig = {
 	include: [
 		/* Your custom game JS scripts */
-		'./gameClasses/ClientNetworkEvents.js',
-		'./gameClasses/ClientWorld.js',
-		'./gameClasses/ClientTerrain.js',
-		'./gameClasses/Orb.js',
-		'./gameClasses/OrbPointer.js',
-		'./gameClasses/Player.js',
-		'./gameClasses/PlayerBehaviour.js',
-		'./gameClasses/PlayerStatsUI.js',
-		'./gameClasses/ThrustParticle.js',
-		'./gameClasses/ExplosionParticle.js',
-		'./gameClasses/LandingPad.js',
-		'./gameClasses/ClientCountDown.js',
-		'./gameClasses/ClientScore.js',
+		'./gameClasses/ClientNetworkEvents.js?v=' + igeVersion,
+		'./gameClasses/ClientWorld.js?v=' + igeVersion,
+		'./gameClasses/ClientTerrain.js?v=' + igeVersion,
+		'./gameClasses/Orb.js?v=' + igeVersion,
+		'./gameClasses/OrbPointer.js?v=' + igeVersion,
+		'./gameClasses/Player.js?v=' + igeVersion,
+		'./gameClasses/PlayerBehaviour.js?v=' + igeVersion,
+		'./gameClasses/PlayerStatsUI.js?v=' + igeVersion,
+		'./gameClasses/ThrustParticle.js?v=' + igeVersion,
+		'./gameClasses/ExplosionParticle.js?v=' + igeVersion,
+		'./gameClasses/LandingPad.js?v=' + igeVersion,
+		'./gameClasses/ClientCountDown.js?v=' + igeVersion,
+		'./gameClasses/ClientScore.js?v=' + igeVersion,
 		/* Standard game scripts */
-		'./client.js',
-		'./index.js'
+		'./client.js?v=' + igeVersion,
+		'./index.js?v=' + igeVersion
 	]
 };
 
