@@ -271,6 +271,23 @@ var Server = IgeClass.extend({
 							}
 						}
 					});
+
+					// Добавляем поведение для проверки количества орбов и их генерации
+					var orbCheckTimer = 0;
+					var ORB_CHECK_INTERVAL = 3000; // Проверяем каждые 3 секунды
+					
+					ige.addBehaviour('checkOrbCount', function () {
+						var currentTime = ige._currentTime;
+						
+						// Обрабатываем очередь спавна орбов каждый кадр
+						self.processSpawnQueue();
+						
+						// Проверяем количество орбов только раз в N миллисекунд
+						if (currentTime - orbCheckTimer >= ORB_CHECK_INTERVAL) {
+							orbCheckTimer = currentTime;
+							self.checkAndSpawnOrbs();
+						}
+					});
 				}
 			});
 		});
