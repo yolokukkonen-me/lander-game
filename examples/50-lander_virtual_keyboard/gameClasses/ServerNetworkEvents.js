@@ -175,38 +175,20 @@ var ServerNetworkEvents = {
 	 * Проверяет нужно ли добавить/удалить ботов
 	 */
 	_manageBots: function () {
-		var realPlayerCount = this._countRealPlayers();
-		var botCount = 0;
+		// ОТКЛЮЧЕНО: Боты не создаются
 		var botIds = [];
-		
-		// Подсчитываем ботов
 		for (var clientId in ige.server.players) {
 			if (ige.server.players[clientId] && ige.server.players[clientId]._isBot) {
-				botCount++;
 				botIds.push(clientId);
 			}
 		}
 		
-		// Если ровно 1 реальный игрок, добавляем ровно 1 бота
-		if (realPlayerCount === 1) {
-			var targetBots = 1; // Ровно 1 бот
-			
-			// Добавляем бота если его нет
-			if (botCount < targetBots) {
-				this._createBot();
-			}
-			// Удаляем лишних ботов если их больше 1
-			else if (botCount > targetBots) {
-				for (var i = 0; i < botIds.length - targetBots; i++) {
-					this._removeBot(botIds[i]);
-				}
-			}
-		} else {
-			// Если реальных игроков 0, 2 или больше - удаляем всех ботов
-			for (var i = 0; i < botIds.length; i++) {
-				this._removeBot(botIds[i]);
-			}
+		// Удаляем всех существующих ботов
+		for (var i = 0; i < botIds.length; i++) {
+			this._removeBot(botIds[i]);
 		}
+		
+		return; // Боты отключены
 	},
 
 	/**
