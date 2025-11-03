@@ -32,10 +32,12 @@ var Server = IgeClass.extend({
 		.box2d.mode(1) // Server-side physics mode
 		.box2d.start();
 
-		// Add the networking component
-		ige.addComponent(IgeNetIoComponent)
-			// Start the network server on port 3002 (local dev)
-			.network.start(3002, function () {
+	// Add the networking component
+	// Port priority: 1) Environment variable, 2) Local dev default (3002)
+	var serverPort = process.env.GAME_SERVER_PORT || 3002;
+	ige.addComponent(IgeNetIoComponent)
+		// Start the network server
+		.network.start(serverPort, function () {
 				// Networking has started so start the game engine
 				ige.start(function (success) {
 					// Check if the engine started successfully

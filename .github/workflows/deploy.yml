@@ -75,6 +75,12 @@ jobs:
             cd /opt/lander/server
             sudo npm ci --production
             
+            echo "→ Обновляем systemd service (добавляем GAME_SERVER_PORT=3000)..."
+            if ! grep -q "GAME_SERVER_PORT" /etc/systemd/system/lander.service; then
+              sudo sed -i '/Environment=NODE_ENV=production/a Environment=GAME_SERVER_PORT=3000' /etc/systemd/system/lander.service
+              sudo systemctl daemon-reload
+            fi
+            
             echo "→ Запускаем сервер..."
             sudo systemctl start lander
             
