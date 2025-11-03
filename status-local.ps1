@@ -55,7 +55,7 @@ if ($processes) {
     Write-Host "Server Status: RUNNING" -ForegroundColor Green
     
     # Check port
-    $port = if ($savedProcess) { $savedProcess.Port } else { 3000 }
+    $port = if ($savedProcess) { $savedProcess.Port } else { 3002 }
     $portInUse = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     
     if ($portInUse) {

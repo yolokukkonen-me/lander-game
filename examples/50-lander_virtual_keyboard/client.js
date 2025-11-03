@@ -39,14 +39,14 @@ var Client = IgeClass.extend({
 
 		// Start the networking (connect to server)
 		// For production (51.250.30.92): use origin (Nginx proxy on port 80/443)
-		// For local dev (localhost): use port 3000 directly
+		// For local dev (localhost): use port 3002 directly
 		var serverUrl;
 		if (window.location.hostname === '51.250.30.92') {
 			// Production: connect through Nginx
 			serverUrl = window.location.origin;
 		} else {
-			// Local development: connect directly to Node.js on port 3000
-			serverUrl = 'http://' + window.location.hostname + ':3000';
+			// Local development: connect directly to Node.js on port 3002
+			serverUrl = 'http://' + window.location.hostname + ':3002';
 		}
 		ige.network.start(serverUrl, function () {
 			// Setup the network command listeners

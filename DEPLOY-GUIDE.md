@@ -377,3 +377,5 @@ sudo dmesg -T
 - `README-DEPLOYMENT.md` — детальная инструкция
 - `FIXES.md` — известные исправления
 
+
+

@@ -175,23 +175,6 @@ var ServerNetworkEvents = {
 	 * Проверяет нужно ли добавить/удалить ботов
 	 */
 	_manageBots: function () {
-		// ВРЕМЕННО ОТКЛЮЧЕНО: Боты не создаются
-		// Удаляем всех существующих ботов
-		var botIds = [];
-		for (var clientId in ige.server.players) {
-			if (ige.server.players[clientId] && ige.server.players[clientId]._isBot) {
-				botIds.push(clientId);
-			}
-		}
-		
-		// Удаляем всех ботов
-		for (var i = 0; i < botIds.length; i++) {
-			this._removeBot(botIds[i]);
-		}
-		
-		return; // Ранний выход - боты отключены
-		
-		/* ОРИГИНАЛЬНАЯ ЛОГИКА (закомментирована):
 		var realPlayerCount = this._countRealPlayers();
 		var botCount = 0;
 		var botIds = [];
@@ -224,7 +207,6 @@ var ServerNetworkEvents = {
 				this._removeBot(botIds[i]);
 			}
 		}
-		*/
 	},
 
 	/**
