@@ -24,7 +24,3 @@ Start-Sleep -Seconds 1
 # Start the server
 Write-Host "[2/2] Starting server..." -ForegroundColor Yellow
 & "$PSScriptRoot\start-local.ps1" -Port $Port
-
-Write-Host "" -ForegroundColor Cyan
-Write-Host "Press any key to close..." -ForegroundColor Yellow
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
