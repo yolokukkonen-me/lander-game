@@ -4,7 +4,7 @@
 # Usage: .\restart-local.ps1
 
 param(
-    [int]$Port = 3000
+    [int]$Port = 3002
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,3 +25,6 @@ Start-Sleep -Seconds 1
 Write-Host "[2/2] Starting server..." -ForegroundColor Yellow
 & "$PSScriptRoot\start-local.ps1" -Port $Port
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

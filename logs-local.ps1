@@ -50,5 +50,9 @@ Write-Host "  cd server" -ForegroundColor Gray
 Write-Host "  node ige.js -g ../examples/50-lander_virtual_keyboard > ../server.log 2>&1" -ForegroundColor Gray
 Write-Host ""
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
 
 

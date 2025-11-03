@@ -87,5 +87,6 @@ if ($stopped) {
     Write-Host ""
 }
 
-
-
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

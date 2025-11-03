@@ -59,9 +59,9 @@ if ($processes) {
     $portInUse = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     
     if ($portInUse) {
-        Write-Host "Port $port: LISTENING" -ForegroundColor Green
+        Write-Host "Port ${port}: LISTENING" -ForegroundColor Green
     } else {
-        Write-Host "Port $port: NOT LISTENING (server may still be starting)" -ForegroundColor Yellow
+        Write-Host "Port ${port}: NOT LISTENING (server may still be starting)" -ForegroundColor Yellow
     }
     
     Write-Host ""
@@ -89,3 +89,6 @@ Write-Host "  Stop:    .\stop-local.ps1" -ForegroundColor Gray
 Write-Host "  Restart: .\restart-local.ps1" -ForegroundColor Gray
 Write-Host ""
 
+Write-Host "" -ForegroundColor Cyan
+Write-Host "Press any key to close..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
