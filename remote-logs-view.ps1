@@ -29,10 +29,10 @@ $LogsPath = "/opt/lander/examples/50-lander_virtual_keyboard/logs"
 Write-Host "Fetching logs information..." -ForegroundColor Yellow
 Write-Host ""
 
-# Get logs statistics - use bash -c with proper quoting
-$BashScript = "cd $LogsPath 2>/dev/null || { echo 'LOGS_DIR_NOT_FOUND'; exit 1; }; echo '=== LOGS STATISTICS ==='; echo 'Total segments:' \$(ls success_segment_*.json 2>/dev/null | wc -l); echo 'Total size:' \$(du -sh . 2>/dev/null | cut -f1); echo 'Oldest:' \$(ls -t success_segment_*.json 2>/dev/null | tail -1); echo 'Newest:' \$(ls -t success_segment_*.json 2>/dev/null | head -1); echo ''; echo '=== LAST 15 SEGMENTS ==='; ls -lht success_segment_*.json 2>/dev/null | head -15"
+# Get logs statistics - pass entire command as single-quoted string to avoid PowerShell interpretation
+$RemoteCommand = 'cd ' + $LogsPath + ' 2>/dev/null || { echo LOGS_DIR_NOT_FOUND; exit 1; }; echo "=== LOGS STATISTICS ==="; echo "Total segments:" $(ls success_segment_*.json 2>/dev/null | wc -l); echo "Total size:" $(du -sh . 2>/dev/null | cut -f1); echo "Oldest:" $(ls -t success_segment_*.json 2>/dev/null | tail -1); echo "Newest:" $(ls -t success_segment_*.json 2>/dev/null | head -1); echo ""; echo "=== LAST 15 SEGMENTS ==="; ls -lht success_segment_*.json 2>/dev/null | head -15'
 
-$Result = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "bash -c `"$BashScript`"" 2>&1
+$Result = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" $RemoteCommand 2>&1
 
 if ($Result -match "LOGS_DIR_NOT_FOUND") {
     Write-Host "LOGS DIRECTORY NOT FOUND!" -ForegroundColor Red
