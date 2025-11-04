@@ -8,8 +8,10 @@
 
 **На сервере:**
 ```
-/opt/lander/examples/50-lander_virtual_keyboard/logs/
+/opt/lander/server/logs/
 ```
+
+**Примечание:** Сервер запускается из `/opt/lander/server/`, поэтому путь `./logs/` в коде указывает именно туда.
 
 **Формат файлов:**
 ```
@@ -53,7 +55,7 @@ success_segment_1730523500123_score10_frames200.json
 
 **Посмотреть логи:**
 ```bash
-cd /opt/lander/examples/50-lander_virtual_keyboard/logs
+cd /opt/lander/server/logs
 ls -lht success_segment_*.json | head -20    # Последние 20 файлов
 ls success_segment_*.json | wc -l            # Количество файлов
 du -sh .                                     # Общий размер
@@ -105,7 +107,7 @@ cat success_segment_1730523456789_score10_frames150.json | head -50
 ### Через scp (ручной способ)
 
 ```bash
-scp -i ~/.ssh/yc ubuntu@51.250.30.92:/opt/lander/examples/50-lander_virtual_keyboard/logs/success_segment_*.json ./downloaded_logs/
+scp -i ~/.ssh/yc ubuntu@51.250.30.92:/opt/lander/server/logs/success_segment_*.json ./downloaded_logs/
 ```
 
 ---
@@ -345,7 +347,7 @@ python analyze_successful_deliveries.py
 
 **SSH проверка:**
 ```bash
-cd /opt/lander/examples/50-lander_virtual_keyboard
+cd /opt/lander/server
 ls -la | grep logs
 # Должна быть папка logs с правами rwx
 ```
