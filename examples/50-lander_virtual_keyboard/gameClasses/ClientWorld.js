@@ -52,22 +52,38 @@ var ClientWorld = {
 			.left(0)
 			.mount(this.uiScene);
 		
-		// Orb stats - create separate text entities for each player slot
-		for (var i = 0; i < 4; i++) {
-			new IgeFontEntity()
-				.id('orbStatsP' + (i + 1))
-				.texture(ige.client.textures.font)
-				.width(100)
-				.height(40)
-				.textAlignX(0)
-				.textAlignY(0)
-				.nativeFont('11px Arial')
-				.nativeStroke(0)
-				.text('')
-				.top(22 + (i * 12))
-				.left(0)
-				.mount(this.uiScene);
-		}
+	// Orb stats - create separate text entities for each player slot
+	for (var i = 0; i < 4; i++) {
+		new IgeFontEntity()
+			.id('orbStatsP' + (i + 1))
+			.texture(ige.client.textures.font)
+			.width(100)
+			.height(40)
+			.textAlignX(0)
+			.textAlignY(0)
+			.nativeFont('11px Arial')
+			.nativeStroke(0)
+			.text('')
+			.top(22 + (i * 12))
+			.left(0)
+			.mount(this.uiScene);
+	}
+	
+	// Logging indicator - показывается когда активно логирование
+	new IgeFontEntity()
+		.id('loggingIndicator')
+		.texture(ige.client.textures.font)
+		.width(100)
+		.height(40)
+		.textAlignX(0)
+		.textAlignY(0)
+		.nativeFont('11px Arial')
+		.nativeStroke(0)
+		.text('')
+		.colorOverlay('#ffffff')  // Белый цвет
+		.top(70)  // Под статистикой игроков (22 + 4*12 = 70)
+		.left(0)
+		.mount(this.uiScene);
 
 		new IgeFontEntity()
 			.texture(ige.client.textures.font)
@@ -166,34 +182,65 @@ var ClientWorld = {
 
 			playerList.sort(function (a, b) { return a.slotNumber - b.slotNumber; });
 
-			// Update each player's stat entity
-			for (var j = 0; j < 4; j++) {
-				var statsEnt = ige.$('orbStatsP' + (j + 1));
-				if (!statsEnt) continue;
+		// Update each player's stat entity
+		for (var j = 0; j < 4; j++) {
+			var statsEnt = ige.$('orbStatsP' + (j + 1));
+			if (!statsEnt) continue;
 
-				if (j < playerList.length) {
-					var p = playerList[j];
-					statsEnt.text('▲ ' + p.orbsCollected);
-					
-					// Convert rgba to hex if needed
-					var color = p.shipColor;
-					if (/^rgba?\(/i.test(color)) {
-						try {
-							var m = color.match(/rgba?\(([^)]+)\)/i);
-							if (m && m[1]) {
-								var parts = m[1].split(',').map(function(v) { return parseFloat(v.trim()); });
-								var r = Math.round(parts[0] || 255);
-								var g = Math.round(parts[1] || 255);
-								var b = Math.round(parts[2] || 255);
-								color = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-							}
-						} catch (e) {}
-					}
-					statsEnt.colorOverlay(color);
-				} else {
-					statsEnt.text('');
+			if (j < playerList.length) {
+				var p = playerList[j];
+				statsEnt.text('▲ ' + p.orbsCollected);
+				
+				// Convert rgba to hex if needed
+				var color = p.shipColor;
+				if (/^rgba?\(/i.test(color)) {
+					try {
+						var m = color.match(/rgba?\(([^)]+)\)/i);
+						if (m && m[1]) {
+							var parts = m[1].split(',').map(function(v) { return parseFloat(v.trim()); });
+							var r = Math.round(parts[0] || 255);
+							var g = Math.round(parts[1] || 255);
+							var b = Math.round(parts[2] || 255);
+							color = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+						}
+					} catch (e) {}
 				}
+				statsEnt.colorOverlay(color);
+			} else {
+				statsEnt.text('');
 			}
-		});
+		}
+	});
+	
+	// Update logging indicator for local player
+	ige.addBehaviour('updateLoggingIndicator', function () {
+		var loggingEnt = ige.$('loggingIndicator');
+		if (!loggingEnt) return;
+		
+		// Показываем индикатор только для локального игрока
+		if (ige.client && ige.client.player) {
+			var player = ige.client.player;
+			
+			// Показываем состояние ВСЕЙ системы логирования
+			// Если система выключена - показываем "OFF"
+			// Если система включена и активно логирует - показываем "LOGGING"
+			// Если система включена но не логирует (между эпизодами) - ничего не показываем
+			
+			var loggingEnabled = player._loggingEnabled !== undefined ? player._loggingEnabled : true;
+			var loggingActive = player._playerLogging || false;
+			
+			if (!loggingEnabled) {
+				loggingEnt.text('● LOGGING OFF');
+				loggingEnt.colorOverlay('#ff0000'); // Красный когда выключено
+			} else if (loggingActive) {
+				loggingEnt.text('● LOGGING');
+				loggingEnt.colorOverlay('#ffffff'); // Белый когда активно
+			} else {
+				loggingEnt.text(''); // Пусто когда включено но не активно
+			}
+		} else {
+			loggingEnt.text('');
+		}
+	});
 	}
 };

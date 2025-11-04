@@ -33,6 +33,13 @@ var Player = IgeEntityBox2d.extend({
 		thrust: false,
 		drop: false
 	};
+	
+	// СИСТЕМА ЛОГИРОВАНИЯ ДЛЯ ОБУЧЕНИЯ БОТА
+	self._loggingEnabled = true; // МАСТЕР-ПЕРЕКЛЮЧАТЕЛЬ: включена ли система логирования (клавиша L)
+	self._playerLogging = false; // Флаг активного логирования (конкретный эпизод)
+	self._logData = []; // Буфер для логов
+	self._logCounter = 0; // Счетчик фреймов
+	self._logInterval = 3; // Логировать каждые 3 фрейма (~50ms при 60fps)
 
 		// Set ID only if provided and not already set (server-side creation)
 		if (id && !self._id) {
@@ -51,7 +58,7 @@ var Player = IgeEntityBox2d.extend({
 	}
 
 	// CRITICAL: Define custom stream sections for network sync!
-	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb', 'justRespawned', 'godMode']);
+	this.streamSections(['transform', 'orbCarrying', 'playerStats', 'crashState', 'controls', 'playerNumber', 'orbsCollected', 'landedState', 'droppedOrb', 'justRespawned', 'godMode', 'loggingState']);
 
 	// Store fixture definitions for later physics setup
 	if (ige.isServer) {
@@ -158,11 +165,26 @@ var Player = IgeEntityBox2d.extend({
 			//.lifeSpan(400)
 			// Mount the emitter to the ship
 			.mount(ige.client.objectScene)
-			// Move the particle emitter to the bottom of the ship
-			.translateTo(this._translate.x, this._translate.y, 0)
-		// Start the emitter
-		.start();*/
+		// Move the particle emitter to the bottom of the ship
+		.translateTo(this._translate.x, this._translate.y, 0)
+	// Start the emitter
+	.start();*/
+	
+	// АВТОСТАРТ ЛОГИРОВАНИЯ: Запускаем логирование через 3.1 сек после создания игрока
+	// (аналогично респавну - даем время для инициализации и разблокировки управления)
+	if (ige.isServer) {
+		setTimeout(function() {
+			if (self._loggingEnabled && !self._isBot) {
+				self._playerLogging = true;
+				self._logData = [];
+				self._logCounter = 0;
+				console.log('[TRAINING] 🎬 Started segment logging at game start (client: ' + self.id() + ')');
+				self.streamSync(); // Синхронизируем для индикатора
+			}
+		}, 3100);
+	}
 	},
+
 
 	/**
 	 * Override the default IgeEntity class streamSectionData() method
@@ -327,14 +349,28 @@ var Player = IgeEntityBox2d.extend({
             // Визуальная индикация god mode на клиенте (removed logs)
         } else {
             // SERVER: Return current god mode flag
-            return JSON.stringify({ enabled: this._godMode || false });
+		return JSON.stringify({ enabled: this._godMode || false });
         }
-    } else {
-			// The section was not one that we handle here, so pass this
-			// to the super-class streamSectionData() method - it handles
-			// the "transform" section by itself
-			return IgeEntityBox2d.prototype.streamSectionData.call(this, sectionId, data);
-		}
+    } else if (sectionId === 'loggingState') {
+        // Handle logging state sync (для визуального индикатора LOGGING)
+        if (data !== undefined) {
+            // CLIENT: Parse and set logging state
+            var parsedData = (typeof data === 'string') ? JSON.parse(data) : data;
+            this._loggingEnabled = parsedData.enabled !== undefined ? parsedData.enabled : true;
+            this._playerLogging = parsedData.active || false;
+        } else {
+            // SERVER: Return current logging state (enabled + active)
+            return JSON.stringify({ 
+                enabled: this._loggingEnabled !== undefined ? this._loggingEnabled : true,
+                active: this._playerLogging || false 
+            });
+        }
+	} else {
+		// The section was not one that we handle here, so pass this
+		// to the super-class streamSectionData() method - it handles
+		// the "transform" section by itself
+		return IgeEntityBox2d.prototype.streamSectionData.call(this, sectionId, data);
+	}
 	},
 
 	setupPhysics: function () {
@@ -391,6 +427,16 @@ crash: function () {
 
 	// SERVER: Reset physics and position, set crash state
 	if (ige.isServer) {
+	// НОВОЕ: Очищаем логи при крэше БЕЗ сохранения (неудачная попытка)
+	if (this._playerLogging && !this._isBot && this._loggingEnabled) {
+		console.log('[TRAINING] 💥 Crash detected - discarding ' + this._logData.length + ' log entries (unsuccessful segment)');
+		this._logData = []; // Удаляем логи без сохранения
+		// _playerLogging остается true - после респавна продолжим логирование
+		
+		// Синхронизируем состояние с клиентом для обновления индикатора
+		this.streamSync();
+	}
+		
 		// Set crash state and sync with clients
 		this._crashed = true;
 		this.streamSync(); // Sync crash state to clients
@@ -515,13 +561,31 @@ _showCrashEffect: function () {
 			self.streamSync(); // 3-я отправка через 100ms
 		}, 100);
 		
-		// Разрешить движение и захват орбов через 3 секунды
-		setTimeout(function() {
-			self._justRespawned = false;
-			self.streamSync(); // Синхронизируем снятие блокировки с клиентом
-		}, 3000);
+	// Разрешить движение и захват орбов через 3 секунды
+	setTimeout(function() {
+		self._justRespawned = false;
+		self.streamSync(); // Синхронизируем снятие блокировки с клиентом
+	}, 3000);
+	
+	// НОВОЕ: Автостарт/продолжение логирования через 3.1 сек (после разблокировки управления)
+	// Только если система логирования включена и это не бот
+	setTimeout(function() {
+		if (self._loggingEnabled && !self._isBot) {
+			// Если логирование не активно - запускаем (первый старт или после отключения кнопкой L)
+			if (!self._playerLogging) {
+				self._playerLogging = true;
+				self._logData = [];
+				self._logCounter = 0;
+				console.log('[TRAINING] 🎬 Started segment logging after respawn');
+			} else {
+				// Логирование уже активно (после краша или доставки) - просто продолжаем
+				console.log('[TRAINING] ▶️ Continuing segment logging after respawn');
+			}
+			self.streamSync(); // Синхронизируем для индикатора
 		}
-	},
+	}, 3100);
+	}
+},
 
 _onRespawn: function () {
 	// Only handle respawn on client
@@ -671,6 +735,15 @@ _onRespawn: function () {
 			// Force sync to update _oldOrbId on client (для красного оверлея)
 			this.streamSync();
 		}
+		
+		// ЛОГИРОВАНИЕ ДЛЯ ОБУЧЕНИЯ БОТА (только для реальных игроков, не ботов)
+		if (this._playerLogging && !this._isBot && !this._crashed) {
+			this._logCounter++;
+			if (this._logCounter >= this._logInterval) {
+				this._logCounter = 0;
+				this._logPlayerState();
+			}
+		}
 		}
 
 		if (this._landed) {
@@ -685,7 +758,7 @@ _onRespawn: function () {
 
 		// Scale the camera based on flight height
 		var camScale = 1 + (0.1 * (this._translate.y / 100));
-		//ige.$('vp1').camera.scaleTo(camScale, camScale, camScale);
+			//ige.$('vp1').camera.scaleTo(camScale, camScale, camScale);
 
 		IgeEntityBox2d.prototype.tick.call(this, ctx);
 
@@ -792,11 +865,14 @@ carryOrb: function (orb, contact) {
 
 		this._orbRope = ige.box2d._world.CreateJoint(distanceJointDef);
 
-		this._carryingOrb = true;
-		this._orb = orb;
-		this._orbId = orb.id(); // Store ID for network sync
+	this._carryingOrb = true;
+	this._orb = orb;
+	this._orbId = orb.id(); // Store ID for network sync
 
-		orb.originalStart(orb._translate);
+	orb.originalStart(orb._translate);
+	
+	// УБРАНО: Больше не начинаем логирование при подъеме орба
+	// Логирование теперь начинается после респавна (Вариант 3)
 	}
 },
 
@@ -848,6 +924,178 @@ toggleGodMode: function () {
 	this._godMode = !this._godMode;
 	
 	// Sync to client
+	this.streamSync();
+},
+
+/**
+ * Логирует текущее состояние игрока для обучения бота
+ */
+_logPlayerState: function () {
+	var logEntry = this._collectCurrentState();
+	if (logEntry) {
+		this._logData.push(logEntry);
+	}
+	
+	// Логи сохраняются автоматически при успешной доставке орба (deposit)
+	// или очищаются при крэше (crash) без сохранения
+},
+
+/**
+ * Собирает текущее состояние игрока для логирования
+ * Используется как для регулярного логирования, так и для финального кадра
+ */
+_collectCurrentState: function () {
+	if (!ige.isServer || !this._box2dBody) return null;
+	
+	var vel = this._box2dBody.GetLinearVelocity();
+	var nearestOrb = this._findNearestOrbForLogging();
+	var nearestPad = this._findNearestPadForLogging();
+	
+	return {
+		// Время
+		time: Date.now(),
+		
+		// Позиция и физика
+		x: Math.round(this._translate.x),
+		y: Math.round(this._translate.y),
+		angle: parseFloat(this._rotate.z.toFixed(3)),
+		velX: parseFloat(vel.x.toFixed(3)),
+		velY: parseFloat(vel.y.toFixed(3)),
+		angVel: parseFloat(this._box2dBody.GetAngularVelocity().toFixed(3)),
+		
+		// Состояние
+		fuel: Math.round(this._fuel),
+		score: this._score,
+		carryingOrb: this._carryingOrb,
+		landed: this._landed,
+		
+		// Управление
+		left: this.controls.left,
+		right: this.controls.right,
+		thrust: this.controls.thrust,
+		
+		// Ближайший орб
+		orbDist: nearestOrb ? Math.round(nearestOrb.dist) : null,
+		orbAngle: nearestOrb ? parseFloat(nearestOrb.angle.toFixed(3)) : null,
+		orbX: nearestOrb ? Math.round(nearestOrb.x) : null,
+		orbY: nearestOrb ? Math.round(nearestOrb.y) : null,
+		
+		// Ближайшая платформа
+		padDist: nearestPad ? Math.round(nearestPad.dist) : null,
+		padAngle: nearestPad ? parseFloat(nearestPad.angle.toFixed(3)) : null,
+		padX: nearestPad ? Math.round(nearestPad.x) : null,
+		padY: nearestPad ? Math.round(nearestPad.y) : null
+	};
+},
+
+_findNearestOrbForLogging: function () {
+	if (!ige.server.scene1 || !ige.server.scene1._children) return null;
+	
+	var nearestOrb = null;
+	var nearestDist = Infinity;
+	
+	for (var i = 0; i < ige.server.scene1._children.length; i++) {
+		var entity = ige.server.scene1._children[i];
+		if (entity && entity._classId === 'Orb' && entity._translate) {
+			var dx = entity._translate.x - this._translate.x;
+			var dy = entity._translate.y - this._translate.y;
+			var dist = Math.sqrt(dx * dx + dy * dy);
+			
+			if (dist < nearestDist) {
+				nearestDist = dist;
+				var angle = Math.atan2(dy, dx) + Math.PI / 2 - this._rotate.z;
+				nearestOrb = {
+					dist: dist,
+					angle: angle,
+					x: entity._translate.x,
+					y: entity._translate.y
+				};
+			}
+		}
+	}
+	
+	return nearestOrb;
+},
+
+_findNearestPadForLogging: function () {
+	if (!ige.server.landingPadPositions) return null;
+	
+	var nearestPad = null;
+	var nearestDist = Infinity;
+	
+	for (var i = 0; i < ige.server.landingPadPositions.length; i++) {
+		var pad = ige.server.landingPadPositions[i];
+		var dx = pad[0] - this._translate.x;
+		var dy = pad[1] - this._translate.y;
+		var dist = Math.sqrt(dx * dx + dy * dy);
+		
+		if (dist < nearestDist) {
+			nearestDist = dist;
+			var angle = Math.atan2(dy, dx) + Math.PI / 2 - this._rotate.z;
+			nearestPad = {
+				dist: dist,
+				angle: angle,
+				x: pad[0],
+				y: pad[1]
+			};
+		}
+	}
+	
+	return nearestPad;
+},
+
+/**
+ * Сохранение логов успешного сегмента доставки (v3.0)
+ * Каждый успешный сегмент (до момента доставки) - отдельный файл с префиксом "success_segment_"
+ * Включает финальный кадр с deliveryEvent для явной маркировки момента доставки
+ */
+_saveSuccessfulDeliveryLog: function (scoreEarned) {
+	if (!ige.isServer || this._logData.length === 0 || !this._loggingEnabled) return;
+	
+	// НОВОЕ: Добавляем финальный кадр с моментом доставки
+	var finalFrame = this._collectCurrentState();
+	if (finalFrame) {
+		// Маркируем как момент доставки
+		finalFrame.deliveryEvent = true;
+		finalFrame.scoreEarned = scoreEarned;
+		this._logData.push(finalFrame);
+	}
+	
+	var fs = require('fs');
+	var timestamp = Date.now();
+	var filename = 'success_segment_' + timestamp + '_score' + scoreEarned + '_frames' + this._logData.length + '.json';
+	var filepath = './logs/' + filename;
+	
+	// Создаем папку logs если её нет
+	if (!fs.existsSync('./logs')) {
+		fs.mkdirSync('./logs');
+	}
+	
+	// Добавляем метаданные в начало файла
+	var logWithMeta = {
+		metadata: {
+			timestamp: timestamp,
+			date: new Date(timestamp).toISOString(),
+			segmentType: 'delivery_segment',
+			scoreEarned: scoreEarned,
+			totalFrames: this._logData.length,
+			duration: (this._logData.length * 3 / 60).toFixed(1) + ' seconds',
+			playerId: this.id(),
+			successful: true,
+			description: 'Successful delivery segment ending with orb deposit (ship may land or fly away for next orb)'
+		},
+		frames: this._logData
+	};
+	
+	fs.writeFileSync(filepath, JSON.stringify(logWithMeta, null, 2));
+	console.log('[TRAINING] ✅ Saved DELIVERY SEGMENT: ' + this._logData.length + ' frames, score: ' + scoreEarned + ' -> ' + filename);
+	
+	// ИЗМЕНЕНО: Очищаем буфер но ПРОДОЛЖАЕМ логирование
+	// Следующий сегмент начнется с текущего состояния
+	this._logData = [];
+	// _playerLogging остается true - продолжаем записывать!
+	
+	// Синхронизируем состояние с клиентом для обновления индикатора
 	this.streamSync();
 },
 

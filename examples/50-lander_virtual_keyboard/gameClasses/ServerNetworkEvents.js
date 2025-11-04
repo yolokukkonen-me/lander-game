@@ -157,6 +157,34 @@ var ServerNetworkEvents = {
 			console.warn('[GOD MODE] Player not found for client ' + clientId);
 		}
 	},
+	
+	// Player logging toggle (клавиша L) - переключает ВСЮ систему логирования
+	_onTogglePlayerLogging: function (data, clientId) {
+		if (ige.server.players[clientId]) {
+			var player = ige.server.players[clientId];
+			
+			// Переключаем МАСТЕР-переключатель системы логирования
+			player._loggingEnabled = !player._loggingEnabled;
+			
+			if (player._loggingEnabled) {
+				console.log('[TRAINING] ✅ Logging system ENABLED for player ' + clientId);
+				// Система включена - логирование начнется автоматически после респавна
+			} else {
+				console.log('[TRAINING] ⛔ Logging system DISABLED for player ' + clientId);
+				// Система выключена - останавливаем текущее логирование если есть
+				if (player._playerLogging) {
+					player._playerLogging = false;
+					// Не сохраняем данные при выключении системы
+					player._logData = [];
+				}
+			}
+			
+			// Синхронизируем состояние с клиентом для индикатора
+			player.streamSync();
+		} else {
+			console.warn('[TRAINING] Player not found for client ' + clientId);
+		}
+	},
 
 	/**
 	 * Подсчитывает количество реальных игроков (не ботов)
@@ -175,20 +203,21 @@ var ServerNetworkEvents = {
 	 * Проверяет нужно ли добавить/удалить ботов
 	 */
 	_manageBots: function () {
-		// ОТКЛЮЧЕНО: Боты не создаются
+		// БОТ ОТКЛЮЧЕН
 		var botIds = [];
+		
+		// Удаляем всех ботов если они есть
 		for (var clientId in ige.server.players) {
 			if (ige.server.players[clientId] && ige.server.players[clientId]._isBot) {
 				botIds.push(clientId);
 			}
 		}
 		
-		// Удаляем всех существующих ботов
 		for (var i = 0; i < botIds.length; i++) {
 			this._removeBot(botIds[i]);
 		}
 		
-		return; // Боты отключены
+		return; // Бот отключен
 	},
 
 	/**
@@ -208,8 +237,8 @@ var ServerNetworkEvents = {
 		// Получаем позицию спавна для этого слота
 		var spawnPos = ige.server.getSpawnPositionForSlot(playerSlot);
 		
-		// Создаем бота
-		ige.server.players[botId] = new BotPlayer(botId)
+		// Создаем бота (используем SimpleBotPlayer - простая логика)
+		ige.server.players[botId] = new SimpleBotPlayer(botId)
 			.streamMode(1) // Enable automatic network streaming
 			.translateTo(spawnPos.x, spawnPos.y, 0)
 			.mount(ige.server.scene1)

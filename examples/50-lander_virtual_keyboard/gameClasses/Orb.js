@@ -257,6 +257,11 @@ var Orb = IgeEntityBox2d.extend({
 			player._score += totalScore;
 			player._orbsCollected = (player._orbsCollected || 0) + 1; // Увеличиваем счетчик собранных орбов
 			
+			// НОВОЕ: Сохраняем логи успешной доставки орба
+			if (player._playerLogging && !player._isBot && player._logData.length > 0) {
+				player._saveSuccessfulDeliveryLog(totalScore);
+			}
+			
 			// Force sync of player stats to client
 			player.streamSync();
 		}
