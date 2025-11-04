@@ -65,7 +65,7 @@ if ($Detailed) {
     if ($Filename) {
         $PreviewCommand = "cat $LogsPath/$Filename | head -50"
         Write-Host ""
-        Write-Host "First 50 lines of $Filename:" -ForegroundColor Green
+        Write-Host "First 50 lines of ${Filename}:" -ForegroundColor Green
         & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" $PreviewCommand
     }
 }
