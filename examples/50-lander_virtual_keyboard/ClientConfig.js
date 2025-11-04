@@ -11,6 +11,7 @@ var igeClientConfig = {
 		'./gameClasses/OrbPointer.js?v=' + igeVersion,
 		'./gameClasses/Player.js?v=' + igeVersion,
 		'./gameClasses/BotPlayer.js?v=' + igeVersion,
+		'./gameClasses/SimpleBotPlayer.js?v=' + igeVersion,
 		'./gameClasses/PlayerBehaviour.js?v=' + igeVersion,
 		'./gameClasses/PlayerStatsUI.js?v=' + igeVersion,
 		'./gameClasses/ThrustParticle.js?v=' + igeVersion,

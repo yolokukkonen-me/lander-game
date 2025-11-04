@@ -266,6 +266,38 @@ var ClientNetworkEvents = {
 			.translateTo(orb._translate.x, orb._translate.y - 15, 0)
 			.mount(ige.client.objectScene)
 			.start(3000);
+	},
+	
+	/**
+	 * Setup keyboard shortcuts for debugging
+	 */
+	setupKeyboard: function () {
+		var self = this;
+		
+		// Add keyboard event listener
+		document.addEventListener('keydown', function(e) {
+			// L key - toggle player logging (для записи обучающих данных)
+			if (e.key === 'l' || e.key === 'L' || e.keyCode === 76) {
+				if (ige.network && ige.network.send) {
+					ige.network.send('togglePlayerLogging');
+					console.log('[CLIENT] Toggling player logging...');
+				}
+			}
+			// I key - toggle god mode
+			else if (e.key === 'i' || e.key === 'I' || e.keyCode === 73) {
+				if (ige.network && ige.network.send) {
+					ige.network.send('toggleGodMode');
+					console.log('[CLIENT] Toggling god mode...');
+				}
+			}
+			// G key - spawn test orbs
+			else if (e.key === 'g' || e.key === 'G' || e.keyCode === 71) {
+				if (ige.network && ige.network.send) {
+					ige.network.send('testSpawnOrbs');
+					console.log('[CLIENT] Spawning test orbs...');
+				}
+			}
+		});
 	}
 };
 

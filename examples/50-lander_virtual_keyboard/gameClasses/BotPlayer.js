@@ -20,11 +20,11 @@ var BotPlayer = Player.extend({
 		this._aiUpdateInterval = 6; // Обновление AI каждые 6 тиков (~100ms)
 		this._aiTickCounter = 0;
 		
-		// Параметры AI (более осторожные значения)
+		// Параметры AI (оптимизированы на основе анализа игрока)
 		this._turnSpeed = 0.5;
 		this._thrustAccuracy = 0.3;
-		this._maxSpeed = 3.0;
-		this._safeAltitude = 50;
+		this._maxSpeed = 2.5;        // Чуть выше крейсерской (2.03)
+		this._safeAltitude = 90;     // Средняя высота игрока: 88 px
 		
 		// Для стабильной посадки
 		this._landingAttempts = 0;
@@ -33,6 +33,61 @@ var BotPlayer = Player.extend({
 		// Система планирования пути
 		this._currentWaypoint = null; // Текущая точка пути
 		this._needSafeAltitude = false; // Флаг необходимости набора высоты
+		
+		// PID режим
+		this._usePID = false; // ОТКЛЮЧЕНО - возвращаемся к старой логике
+		this._pid = null;
+		this._pidConfig = {
+			angle: { kp: 0.8, ki: 0.0, kd: 0.2, deadband: 0.05 },
+			altitude: { kp: 0.15, ki: 0.0, kd: 0.3, deadband: 5 },
+			speed: { kp: 0.2, ki: 0.0, kd: 0.05, deadband: 0.15 }
+		};
+		this._pidTargets = { desiredAltitudeY: null, desiredSpeed: 1.2 };
+		this._pidInitialized = false; // Отложенная инициализация
+		
+		// Метрики состояний для повторных попыток
+		this._prevState = null;
+		this._stateTicks = 0;
+		this._lastProgressDist = null;
+		this._noProgressTicks = 0;
+		
+		// Активный маршрут (последовательность waypoints)
+		this._activePath = [];
+		
+		// DEBUG / LOGGING (server-side)
+		this._debugAI = false; // Отключено
+		this._logAiLast = {};
+		this._logAiThrottleMs = 500;
+	},
+
+	// Stream bot path to clients for debug rendering
+	streamSectionData: function (sectionId, data) {
+		if (sectionId === 'botPath') {
+			if (data !== undefined) {
+				// CLIENT: store debug path
+				var parsed = (typeof data === 'string') ? JSON.parse(data) : data;
+				this._debugBotPath = parsed && parsed.path ? parsed.path : [];
+				return;
+			} else {
+				// SERVER: only for bots, send simplified path
+				var out = [];
+				if (this._activePath && this._activePath.length) {
+					for (var i = 0; i < this._activePath.length && i < 12; i++) {
+						var n = this._activePath[i];
+						out.push({ x: Math.round(n.x), y: Math.round(n.y), mode: n.mode });
+					}
+				}
+				return JSON.stringify({ path: out });
+			}
+		}
+		// Fallback to Player implementation
+		return Player.prototype.streamSectionData.call(this, sectionId, data);
+	},
+
+	// Hook into tick
+	tick: function (ctx) {
+		// Server AI already handled in this class earlier
+		return Player.prototype.tick.call(this, ctx);
 	},
 
 	tick: function (ctx) {
@@ -69,6 +124,39 @@ var BotPlayer = Player.extend({
 	},
 
 	updateAI: function () {
+		// Отложенная инициализация PID (после того как PIDController определен)
+		if (!this._pidInitialized && this._usePID) {
+			this._initPidControllers();
+			this._pidInitialized = true;
+		}
+		
+		// Обновление счетчиков по смене состояния
+		if (this._prevState !== this._aiState) {
+			this._resetStateMetrics();
+			this._prevState = this._aiState;
+		}
+
+		if (this._usePID) {
+			// PID-машина состояний
+			switch (this._aiState) {
+				case 'idle':
+					this.pidIdle();
+					break;
+				case 'seekingOrb':
+					this.pidSeekOrb();
+					break;
+				case 'carryingOrb':
+					this.pidCarryOrb();
+					break;
+				case 'landing':
+					this.pidLanding();
+					break;
+			}
+			this._stateTicks++;
+			return;
+		}
+
+		// Старый режим (fallback)
 		// Машина состояний AI
 		switch (this._aiState) {
 			case 'idle':
@@ -84,6 +172,144 @@ var BotPlayer = Player.extend({
 				this.aiLanding();
 				break;
 		}
+	},
+
+	_resetStateMetrics: function () {
+		this._stateTicks = 0;
+		this._lastProgressDist = null;
+		this._noProgressTicks = 0;
+	},
+
+	// ---------- LOGGING HELPERS (server only) ----------
+	_logAi: function (tag, obj) {
+		if (!ige.isServer || !this._debugAI) return;
+		try {
+			var id = (this.id ? this.id() : this._id) || 'bot';
+			console.log('[BOT]', id, tag, JSON.stringify(obj));
+		} catch (e) {}
+	},
+	_logAiT: function (key, tag, obj) {
+		if (!ige.isServer || !this._debugAI) return;
+		var now = ige._currentTime || Date.now();
+		var last = this._logAiLast[key] || 0;
+		if (now - last >= this._logAiThrottleMs) {
+			this._logAiLast[key] = now;
+			this._logAi(tag, obj);
+		}
+	},
+
+	_currentWaypointNode: function () {
+		if (!this._activePath || this._activePath.length === 0) return null;
+		return this._activePath[0];
+	},
+
+	_advancePathIfReached: function () {
+		var wp = this._currentWaypointNode();
+		if (!wp) return;
+		var dx = wp.x - this._translate.x;
+		var dy = wp.y - this._translate.y;
+		var dist = Math.sqrt(dx * dx + dy * dy);
+		var thresh = (wp.mode === 'final_approach' || wp.mode === 'landing') ? 25 : 45;
+		if (dist < thresh) {
+			this._activePath.shift();
+			this._logAi('advanceWp', { left: (this._activePath && this._activePath.length) || 0 });
+		}
+	},
+
+	_ensurePathTo: function (tx, ty, forOrb) {
+		// Не пере-планировать каждый тик: только если цель значительно сменилась
+		// или прошло достаточно времени, или активный путь пуст
+		var now = ige._currentTime || Date.now();
+		if (!this._lastPlanAt) this._lastPlanAt = 0;
+		if (!this._lastPlannedTarget) this._lastPlannedTarget = { x: null, y: null, forOrb: null };
+
+		var targetDelta = Math.abs((this._lastPlannedTarget.x || 0) - tx) + Math.abs((this._lastPlannedTarget.y || 0) - ty);
+		var timeDelta = now - this._lastPlanAt;
+		var needReplan = false;
+		if (!this._activePath || this._activePath.length === 0) needReplan = true;
+		else if (targetDelta > 20) needReplan = true;
+		else if (timeDelta > 1500) needReplan = true;
+
+		if (!needReplan) return;
+
+		this._activePath = this._planPath(tx, ty, forOrb);
+		this._lastPlannedTarget = { x: tx, y: ty, forOrb: forOrb };
+		this._lastPlanAt = now;
+	},
+
+	_planPath: function (tx, ty, forOrb) {
+		var path = [];
+		var x0 = this._translate.x, y0 = this._translate.y;
+		var maxY = this.getMaxTerrainHeightBetween(x0, tx);
+		var baseMargin = forOrb ? 180 : 160; // больше запас над рельефом
+		var cruiseY = Math.min(560, Math.max(40, maxY - baseMargin));
+		cruiseY = this._applyPlayerAvoidanceToY(cruiseY, x0, tx);
+
+		// Шаг 1: набор высоты (вертикально вверх на безопасную)
+		path.push({ x: x0, y: cruiseY, mode: forOrb ? 'cruise' : 'cruise_with_orb' });
+		
+		// Шаг 2: горизонтальный перелет на безопасной высоте
+		path.push({ x: tx, y: cruiseY, mode: forOrb ? 'cruise' : 'cruise_with_orb' });
+		
+		// Шаг 3: топ-даун точка над целью
+		var topDownY = Math.min(ty - 80, maxY - 60);
+		topDownY = Math.max(40, topDownY);
+		path.push({ x: tx, y: topDownY, mode: 'approach' });
+		
+		// Шаг 4: финальный подход немного выше цели
+		var finalY = Math.min(ty - 20, maxY - 50);
+		finalY = Math.max(40, finalY);
+		path.push({ x: tx, y: finalY, mode: 'final_approach' });
+
+		// Проверка безопасности и коррекция: если где-то близко к земле — поднять cruiseY и перестроить
+		if (!this._pathIsSafe(path)) {
+			cruiseY = Math.max(40, cruiseY - 40);
+			path = [
+				{ x: x0, y: cruiseY, mode: forOrb ? 'cruise' : 'cruise_with_orb' },
+				{ x: tx, y: cruiseY, mode: forOrb ? 'cruise' : 'cruise_with_orb' },
+				{ x: tx, y: topDownY, mode: 'approach' },
+				{ x: tx, y: finalY, mode: 'final_approach' }
+			];
+		}
+		this._logAiT('plan', 'planPath', { from: {x: Math.round(x0), y: Math.round(y0)}, to: {x: Math.round(tx), y: Math.round(ty)}, cruiseY: Math.round(cruiseY), topDownY: Math.round(topDownY), finalY: Math.round(finalY), maxTerrainY: Math.round(maxY), forOrb: !!forOrb });
+		return path;
+	},
+
+	_pathIsSafe: function (path) {
+		for (var i = 1; i < path.length; i++) {
+			var a = path[i - 1], b = path[i];
+			if (!this.checkPathSafety(b.x, b.y)) return false;
+		}
+		return true;
+	},
+
+	_applyPlayerAvoidanceToY: function (y, x1, x2) {
+		// Простое избегание: если рядом с нами по X есть игрок, поднимем маршрут выше
+		var others = this._getOtherPlayers();
+		for (var i = 0; i < others.length; i++) {
+			var p = others[i];
+			if (p) {
+				var withinX = (p.x >= Math.min(x1, x2) - 60) && (p.x <= Math.max(x1, x2) + 60);
+				var dy = Math.abs(p.y - y);
+				if (withinX && dy < 120) {
+					// Поднимаем маршрут на 40px (вверх = меньше Y)
+					y = Math.max(40, y - 40);
+				}
+			}
+		}
+		return y;
+	},
+
+	_getOtherPlayers: function () {
+		var res = [];
+		if (!ige.server || !ige.server.players) return res;
+		for (var id in ige.server.players) {
+			var pl = ige.server.players[id];
+			if (pl && pl !== this && pl._translate) {
+				res.push({ x: pl._translate.x, y: pl._translate.y });
+			}
+		}
+		return res;
 	},
 
 	// Состояние: ждем, ищем орб
@@ -122,35 +348,11 @@ var BotPlayer = Player.extend({
 		var myY = this._translate.y;
 		var currentAltitude = this.getCurrentAltitude();
 		
-		// КРИТИЧНО: Сначала набираем безопасную высоту после взлета
-		var SAFE_FLIGHT_ALTITUDE = 120; // Безопасная высота для полета
-		
+		// УПРОЩЕНО: Пропускаем набор высоты, сразу летим к орбу
 		if (this._needSafeAltitude) {
-			if (currentAltitude < SAFE_FLIGHT_ALTITUDE) {
-				// ИСПРАВЛЕНО: Летим к фиксированной высоте над землей
-				var terrainHeight = ige.server.getTerrainHeightAtX ? ige.server.getTerrainHeightAtX(myX) : 400;
-				var targetY = terrainHeight - SAFE_FLIGHT_ALTITUDE; // Фиксированная точка
-				
-				// Взлетаем вертикально вверх до безопасной высоты
-				this.flyTowards(myX, targetY, false);
-				
-				// ОТЛАДКА
-				if (!this._lastClimbLog || ige._currentTime - this._lastClimbLog > 2000) {
-					console.log('[BOT] Набор высоты:', {
-						currentAlt: Math.round(currentAltitude),
-						targetAlt: SAFE_FLIGHT_ALTITUDE,
-						terrainHeight: Math.round(terrainHeight),
-						targetY: Math.round(targetY)
-					});
-					this._lastClimbLog = ige._currentTime;
-				}
-				return;
-			} else {
-				// Достигли безопасной высоты - теперь планируем маршрут
-				console.log('[BOT] ✓ Безопасная высота достигнута, начинаем полет к орбу');
-				this._needSafeAltitude = false;
-				this._currentWaypoint = null; // Сброс waypoint для нового планирования
-			}
+			console.log('[BOT] Пропускаем набор высоты, летим к орбу');
+			this._needSafeAltitude = false;
+			this._currentWaypoint = null;
 		}
 		
 		// Получаем скорость
@@ -241,33 +443,11 @@ var BotPlayer = Player.extend({
 		var myY = this._translate.y;
 		var currentAltitude = this.getCurrentAltitude();
 		
-		// КРИТИЧНО: Сначала набираем безопасную высоту с орбом
-		var SAFE_FLIGHT_ALTITUDE = 120;
-		
+		// УПРОЩЕНО: Пропускаем набор высоты, сразу летим к платформе
 		if (this._needSafeAltitude) {
-			if (currentAltitude < SAFE_FLIGHT_ALTITUDE) {
-				// ИСПРАВЛЕНО: Летим к фиксированной высоте над землей
-				var terrainHeight = ige.server.getTerrainHeightAtX ? ige.server.getTerrainHeightAtX(myX) : 400;
-				var targetY = terrainHeight - SAFE_FLIGHT_ALTITUDE; // Фиксированная точка
-				
-				// Взлетаем вертикально вверх до безопасной высоты
-				this.flyTowards(myX, targetY, false);
-				
-				// ОТЛАДКА
-				if (!this._lastClimbLog || ige._currentTime - this._lastClimbLog > 2000) {
-					console.log('[BOT] Набор высоты с орбом:', {
-						currentAlt: Math.round(currentAltitude),
-						targetAlt: SAFE_FLIGHT_ALTITUDE
-					});
-					this._lastClimbLog = ige._currentTime;
-				}
-				return;
-			} else {
-				// Достигли безопасной высоты
-				console.log('[BOT] ✓ Безопасная высота с орбом достигнута');
-				this._needSafeAltitude = false;
-				this._currentWaypoint = null; // Сброс для нового планирования
-			}
+			console.log('[BOT] Пропускаем набор высоты, летим к платформе');
+			this._needSafeAltitude = false;
+			this._currentWaypoint = null;
 		}
 		
 		// Получаем скорость
@@ -358,8 +538,8 @@ var BotPlayer = Player.extend({
 		var wound = Math.round(currentAngle / (2 * Math.PI));
 		currentAngle -= 2 * Math.PI * wound;
 		
-		// Поворачиваем к нулю (более аккуратно)
-		if (Math.abs(currentAngle) > 0.08) {
+		// Поворачиваем к нулю (из анализа: angle ~0)
+		if (Math.abs(currentAngle) > 0.10) {
 			if (currentAngle > 0) {
 				this.controls.left = true;
 				this.controls.right = false;
@@ -384,10 +564,10 @@ var BotPlayer = Player.extend({
 			this.controls.left = false;
 			this.controls.right = false;
 			
-			// КРИТИЧНО: Контроль вертикальной скорости для безопасной посадки
+			// КРИТИЧНО: Контроль вертикальной скорости (из анализа: 0.66)
 			var verticalSpeed = velocity.y;
-			var targetVerticalSpeed = 0.8; // Целевая скорость падения (медленно)
-			var maxVerticalSpeed = 1.5; // Максимальная безопасная скорость падения
+			var targetVerticalSpeed = 0.7; // Целевая скорость падения (из анализа: 0.66)
+			var maxVerticalSpeed = 1.0; // Максимальная безопасная скорость
 			
 			// Если падаем слишком быстро - ТОРМОЗИМ
 			if (verticalSpeed > maxVerticalSpeed) {
@@ -397,8 +577,8 @@ var BotPlayer = Player.extend({
 			else if (verticalSpeed < targetVerticalSpeed && distY > 20) {
 				this.controls.thrust = false;
 			}
-			// Если близко к платформе - активно тормозим
-			else if (distY < 30 && verticalSpeed > 0.3) {
+			// Если близко к платформе - активно тормозим (из анализа: начинать на 24px)
+			else if (distY < 25 && verticalSpeed > 0.5) {
 				this.controls.thrust = true;
 			}
 			// Иначе - поддерживаем медленное падение
@@ -523,8 +703,8 @@ var BotPlayer = Player.extend({
 				// Падаем быстро - даем газ для компенсации гравитации
 				this.controls.thrust = true;
 			}
-			// Режим торможения перед орбом - меньше газа
-			else if (shouldSlowDown && currentSpeed > 1.5) {
+			// Режим торможения перед орбом (из анализа: скорость подхода 2.14)
+			else if (shouldSlowDown && currentSpeed > 2.0) {
 				// Тормозим - не даем газ если уже достаточно быстро
 				this.controls.thrust = false;
 			}
@@ -554,8 +734,8 @@ var BotPlayer = Player.extend({
 		var currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
 		var verticalSpeed = velocity.y;
 		
-		// ЦЕЛЬ: Скорость должна быть очень маленькой (меньше 0.5)
-		var MAX_APPROACH_SPEED = 0.6;
+		// ЦЕЛЬ: Скорость подхода к орбу (из анализа: 2.14)
+		var MAX_APPROACH_SPEED = 1.5;
 		
 		// Если скорость слишком большая - активно тормозим
 		if (currentSpeed > MAX_APPROACH_SPEED) {
@@ -784,9 +964,9 @@ var BotPlayer = Player.extend({
 		var myX = this._translate.x;
 		var myY = this._translate.y;
 		
-		// Проверяем несколько точек между нами и целью
-		var steps = 5;
-		var minSafeDistance = 50; // Минимальное безопасное расстояние до земли
+		// Проверяем больше точек между нами и целью
+		var steps = 10;
+		var minSafeDistance = 90; // Минимальное безопасное расстояние до земли
 		
 		for (var i = 1; i <= steps; i++) {
 			var checkX = myX + (targetX - myX) * (i / steps);
@@ -903,6 +1083,327 @@ var BotPlayer = Player.extend({
 		return nearestPad;
 	},
 
+	// ===========================
+	// PID-РАЗДЕЛ
+	// ===========================
+	_initPidControllers: function () {
+		var c = this._pidConfig;
+		this._pid = {
+			angle: new PIDController(c.angle.kp, c.angle.ki, c.angle.kd),
+			altitude: new PIDController(c.altitude.kp, c.altitude.ki, c.altitude.kd),
+			speed: new PIDController(c.speed.kp, c.speed.ki, c.speed.kd)
+		};
+	},
+
+	_pidNormalizeAngle: function (angle) {
+		var wound = Math.round(angle / (2 * Math.PI));
+		angle -= 2 * Math.PI * wound;
+		return angle;
+	},
+
+	pidIdle: function () {
+		var orb = this.findNearestOrb();
+		if (orb) {
+			this._targetOrb = orb;
+			this._aiState = 'seekingOrb';
+		}
+	},
+
+	pidSeekOrb: function () {
+		if (!this._targetOrb || !this._targetOrb._translate) {
+			this._aiState = 'idle';
+			this._targetOrb = null;
+			return;
+		}
+
+		// Если уже несем этот орб
+		if (this._carryingOrb && this._orb === this._targetOrb) {
+			this._aiState = 'carryingOrb';
+			this._targetLandingPad = this.findNearestLandingPad();
+			return;
+		}
+
+		var targetX = this._targetOrb._translate.x;
+		var targetY = this._targetOrb._translate.y;
+		// Прогресс к цели
+		var dxp = targetX - this._translate.x;
+		var dyp = targetY - this._translate.y;
+		var dist = Math.sqrt(dxp * dxp + dyp * dyp);
+		if (this._lastProgressDist == null || dist < this._lastProgressDist - 5) {
+			this._noProgressTicks = 0;
+		} else {
+			this._noProgressTicks++;
+		}
+		this._lastProgressDist = dist;
+
+		// Режим: если далеко по X — крейсерский полет с безопасной высотой,
+		// если близко — финальный подход снизу-вверх
+		// Обеспечиваем маршрут до орба (terrain-aware, top-down)
+		this._ensurePathTo(targetX, targetY, /*forOrb*/ true);
+		var wp = this._currentWaypointNode();
+		var mode = wp ? wp.mode : 'cruise';
+		this._pidNavigateTo(wp.x, wp.y, mode);
+		this._advancePathIfReached();
+		this._logAiT('seek', 'pidSeekOrb', {
+			mode: mode,
+			wp: wp,
+			alt: Math.round(this.getCurrentAltitude()),
+			pos: {x: Math.round(this._translate.x), y: Math.round(this._translate.y)},
+			orb: {x: Math.round(targetX), y: Math.round(targetY)},
+			pathLen: (this._activePath && this._activePath.length) || 0,
+			noProg: this._noProgressTicks,
+			stateTicks: this._stateTicks
+		});
+
+		// Таймауты/повторные попытки
+		if (this._stateTicks > 900 || this._noProgressTicks > 240) { // 15с или >4с без прогресса
+			var newOrb = this.findNearestOrb();
+			if (newOrb) {
+				this._targetOrb = newOrb;
+				this._needSafeAltitude = true;
+				this._currentWaypoint = null;
+				this._resetStateMetrics();
+				console.log('[BOT] Re-acquire orb target');
+			} else {
+				this._aiState = 'idle';
+			}
+		}
+	},
+
+	pidCarryOrb: function () {
+		if (!this._carryingOrb) {
+			this._aiState = 'idle';
+			this._targetLandingPad = null;
+			return;
+		}
+
+		if (!this._targetLandingPad) {
+			this._targetLandingPad = this.findNearestLandingPad();
+			if (!this._targetLandingPad) {
+				this._aiState = 'idle';
+				return;
+			}
+		}
+
+		var targetX = this._targetLandingPad[0];
+		var targetY = this._targetLandingPad[1];
+		// Прогресс к платформе
+		var dxp = targetX - this._translate.x;
+		var dyp = targetY - this._translate.y;
+		var distNow = Math.sqrt(dxp * dxp + dyp * dyp);
+		if (this._lastProgressDist == null || distNow < this._lastProgressDist - 5) {
+			this._noProgressTicks = 0;
+		} else {
+			this._noProgressTicks++;
+		}
+		this._lastProgressDist = distNow;
+		var dx = targetX - this._translate.x;
+		var dy = targetY - this._translate.y;
+		var dist = Math.sqrt(dx * dx + dy * dy);
+		// Строим маршрут к платформе
+		this._ensurePathTo(targetX, targetY, /*forOrb*/ false);
+		var wp = this._currentWaypointNode();
+		var mode = wp ? wp.mode : 'cruise_with_orb';
+		this._pidNavigateTo(wp.x, wp.y, mode);
+		this._advancePathIfReached();
+		this._logAiT('carry', 'pidCarryOrb', {
+			mode: mode,
+			wp: wp,
+			alt: Math.round(this.getCurrentAltitude()),
+			pos: {x: Math.round(this._translate.x), y: Math.round(this._translate.y)},
+			pad: {x: Math.round(targetX), y: Math.round(targetY)},
+			pathLen: (this._activePath && this._activePath.length) || 0,
+			noProg: this._noProgressTicks,
+			stateTicks: this._stateTicks
+		});
+
+		// Условие перехода к посадке
+		if (dist < 100) {
+			this._aiState = 'landing';
+		}
+
+		// Таймауты/повторные попытки
+		if (this._stateTicks > 900 || this._noProgressTicks > 240) { // 15с или >4с без прогресса
+			this._needSafeAltitude = true;
+			this._currentWaypoint = null;
+			this._resetStateMetrics();
+			console.log('[BOT] Replan path to landing pad');
+		}
+	},
+
+	pidLanding: function () {
+		if (this._landed) {
+			this._aiState = 'idle';
+			this._targetOrb = null;
+			this._targetLandingPad = null;
+			return;
+		}
+
+		if (!this._targetLandingPad) {
+			this._aiState = 'idle';
+			return;
+		}
+
+		var targetX = this._targetLandingPad[0];
+		var targetY = this._targetLandingPad[1] - 40; // точка чуть выше платформы
+		this._pidTargets.desiredSpeed = 0.6;
+		this._pidNavigateTo(targetX, targetY, 'landing');
+
+		// Если слишком долго не садимся — делаем повторную попытку захода
+		if (this._stateTicks > 600) { // ~10 секунд на заход
+			this._aiState = 'carryingOrb';
+			this._needSafeAltitude = true;
+			this._currentWaypoint = null;
+			this._resetStateMetrics();
+			console.log('[BOT] Landing timeout — retry approach');
+		}
+	},
+
+	_pidDesiredAltitudeYFor: function (targetX, targetY, mode) {
+		var currentX = this._translate.x;
+		var maxTerrainY = this.getMaxTerrainHeightBetween(currentX, targetX);
+		// Для крейсерского/вертикального этапа целевая высота = Y текущего waypoint
+		if (mode === 'cruise' || mode === 'cruise_with_orb') return targetY;
+		// Для подхода сверху — не ниже безопасного отступа от рельефа
+		if (mode === 'approach' || mode === 'approach_to_landing') return Math.min(targetY, maxTerrainY - 80);
+		// Для посадки держим чуть выше цели, но не ниже рельефа + отступ
+		if (mode === 'landing') return Math.min(targetY, maxTerrainY - 70);
+		return Math.min(targetY, maxTerrainY - 120);
+	},
+
+	_pidNavigateTo: function (targetX, targetY, mode) {
+		// 1) УЛУЧШЕННАЯ ЛОГИКА: Наклон к цели, но ограниченный для плавности
+		var distX = targetX - this._translate.x;
+		var distY = targetY - this._translate.y;
+		
+		// Рассчитываем угол к цели (как раньше)
+		var angleToTarget = Math.atan2(distY, distX) + Math.PI / 2;
+		
+		// Базовый угол: преимущественно вверх
+		var baseAngle = 0;
+		
+		// Максимальный допустимый угол отклонения от вертикали
+		var maxDeviation = (mode === 'landing') ? 0.4 : 0.8; // При посадке ~23 град, иначе ~46 град
+		
+		// Вычисляем желаемый угол: стремимся к цели, но ограничиваем отклонение от вертикали
+		var rawTargetAngle = this._pidNormalizeAngle(angleToTarget);
+		var deviation = rawTargetAngle - baseAngle;
+		
+		// Нормализуем deviation в диапазон [-PI, PI]
+		if (deviation > Math.PI) deviation -= 2 * Math.PI;
+		if (deviation < -Math.PI) deviation += 2 * Math.PI;
+		
+		// Ограничиваем отклонение
+		var clampedDeviation = Math.max(-maxDeviation, Math.min(maxDeviation, deviation));
+		
+		var desiredAngle = baseAngle + clampedDeviation;
+		desiredAngle = this._pidNormalizeAngle(desiredAngle);
+		var currentAngle = this._pidNormalizeAngle(this._rotate.z);
+		var angleError = desiredAngle - currentAngle;
+		if (angleError > Math.PI) angleError -= 2 * Math.PI;
+		if (angleError < -Math.PI) angleError += 2 * Math.PI;
+		var angleOut = this._pid.angle.update(0, -angleError); // хотим angleError -> 0
+		var angleDead = this._pidConfig.angle.deadband;
+		if (angleOut > angleDead) {
+			this.controls.right = true; this.controls.left = false;
+		} else if (angleOut < -angleDead) {
+			this.controls.left = true; this.controls.right = false;
+		} else {
+			this.controls.left = false; this.controls.right = false;
+		}
+
+		// 2) Контроль высоты PID по Y (работаем в координатах Y)
+		var desiredY = this._pidDesiredAltitudeYFor(targetX, targetY, mode);
+		// Ограничения экрана
+		desiredY = Math.max(40, Math.min(560, desiredY));
+		this._pidTargets.desiredAltitudeY = desiredY;
+		var altitudeOut = this._pid.altitude.update(desiredY, this._translate.y);
+		var altDead = this._pidConfig.altitude.deadband;
+
+		// 3) Контроль скорости
+		var v = this._box2dBody.GetLinearVelocity();
+		var speed = Math.sqrt(v.x * v.x + v.y * v.y);
+		var desiredSpeed = (mode === 'cruise' || mode === 'cruise_with_orb') ? 2.0 : (mode === 'landing' ? 0.5 : 1.0);
+		this._pidTargets.desiredSpeed = desiredSpeed;
+		var speedOut = this._pid.speed.update(desiredSpeed, speed);
+		var spdDead = this._pidConfig.speed.deadband;
+
+		// 3.5) Помощь при взлете: если стоим на платформе или почти нулевая скорость — даем газ без условий
+		if (this._landed || speed < 0.3) {
+			this.controls.thrust = this._fuel > 5; // минимальная проверка топлива
+			this._logAiT('lift', 'liftOffAssist', { 
+				speed: speed, 
+				landed: !!this._landed, 
+				deviation: +clampedDeviation.toFixed(2),
+				desiredAngle: +desiredAngle.toFixed(2),
+				currentAngle: +currentAngle.toFixed(2)
+			});
+			return;
+		}
+
+		// 4) Решение о тяге: приоритет высоты и безопасности
+		var altitude = this.getCurrentAltitude();
+		var safeAlt = 50;
+		var verticalSpeed = v.y; // положительная = падение вниз
+		var distToDesiredY = currentY - desiredY; // положительная = ниже цели
+		
+		var thrust = false;
+		
+		// Критическая высота - всегда тормозим падение
+		if (altitude < safeAlt && verticalSpeed > 0.5) {
+			thrust = true;
+		}
+		// Если нужно подняться (мы ниже цели)
+		else if (distToDesiredY > 10) {
+			// Даем тягу если падаем или медленно поднимаемся
+			if (verticalSpeed > -1.5) {
+				thrust = true;
+			}
+		}
+		// Если нужно опуститься (мы выше цели)
+		else if (distToDesiredY < -10) {
+			// Даем тягу только если падаем слишком быстро
+			if (verticalSpeed > 2.0) {
+				thrust = true;
+			}
+		}
+		// Близко к целевой высоте - поддерживаем hover
+		else {
+			// Компенсируем гравитацию, держим медленное падение
+			if (verticalSpeed > 0.8) {
+				thrust = true;
+			}
+		}
+
+		// Газ если корабль смотрит достаточно вертикально (не перевернут)
+		var angleAligned = Math.abs(currentAngle) < 1.0; // Не больше ~57 градусов от вертикали
+		// Но если очень низко (еще не вышли на безопасную высоту) — игнорируем строгую проверку выравнивания
+		if (altitude < safeAlt + 10) {
+			angleAligned = Math.abs(currentAngle) < 1.5; // разрешаем больший допуск на старте
+		}
+		this.controls.thrust = thrust && angleAligned && this._fuel > 5;
+		this._logAiT('nav', 'pidNavigate', {
+			mode: mode,
+			pos: {x: Math.round(this._translate.x), y: Math.round(this._translate.y)},
+			wp: {x: Math.round(targetX), y: Math.round(targetY)},
+			angleToTarget: +angleToTarget.toFixed(2),
+			deviation: +clampedDeviation.toFixed(2),
+			desiredAngle: +desiredAngle.toFixed(2),
+			currentAngle: +currentAngle.toFixed(2),
+			angleErr: +angleError.toFixed(2),
+			angleAligned: angleAligned,
+			altitudeY: Math.round(currentY),
+			desiredY: Math.round(desiredY),
+			distToDesiredY: Math.round(distToDesiredY),
+			verticalSpeed: +verticalSpeed.toFixed(2),
+			spd: +speed.toFixed(2),
+			desSpd: desiredSpeed,
+			altitude: Math.round(altitude),
+			thrust: this.controls.thrust
+		});
+	},
+
+
 	// Переопределяем crash для сброса AI состояния
 	crash: function () {
 		// Вызываем родительский метод
@@ -915,6 +1416,8 @@ var BotPlayer = Player.extend({
 		this._landingAttempts = 0;
 		this._currentWaypoint = null;
 		this._needSafeAltitude = false;
+		this._prevState = null;
+		this._resetStateMetrics();
 	},
 
 	// Переопределяем respawn для сброса счетчиков
@@ -934,8 +1437,25 @@ var BotPlayer = Player.extend({
 		this._landingAttempts = 0;
 		this._currentWaypoint = null;
 		this._needSafeAltitude = false;
+		this._prevState = null;
+		this._resetStateMetrics();
 	}
 });
 
 if (typeof(module) !== 'undefined' && typeof(module.exports) !== 'undefined') { module.exports = BotPlayer; }
+
+
+// Простой PID контроллер
+function PIDController(kp, ki, kd) {
+	this.kp = kp; this.ki = ki; this.kd = kd;
+	this.integral = 0;
+	this.lastError = 0;
+	this.update = function (target, current) {
+		var error = target - current;
+		this.integral += error;
+		var derivative = error - this.lastError;
+		this.lastError = error;
+		return this.kp * error + this.ki * this.integral + this.kd * derivative;
+	};
+}
 
