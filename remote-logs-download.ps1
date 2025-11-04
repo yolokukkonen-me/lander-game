@@ -29,7 +29,7 @@ if (-not (Test-Path $KeyPath)) {
     exit 1
 }
 
-$RemoteLogsPath = "/opt/lander/examples/50-lander_virtual_keyboard/logs"
+$RemoteLogsPath = "/opt/lander/server/logs"
 
 # Create output directory
 if (-not (Test-Path $OutputDir)) {

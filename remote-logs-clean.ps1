@@ -35,7 +35,7 @@ if (-not (Test-Path $KeyPath)) {
     exit 1
 }
 
-$RemoteLogsPath = "/opt/lander/examples/50-lander_virtual_keyboard/logs"
+$RemoteLogsPath = "/opt/lander/server/logs"
 
 Write-Host "Searching for logs older than $OlderThanDays days..." -ForegroundColor Yellow
 

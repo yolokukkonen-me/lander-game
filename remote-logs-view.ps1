@@ -24,7 +24,7 @@ if (-not (Test-Path $KeyPath)) {
     exit 1
 }
 
-$LogsPath = "/opt/lander/examples/50-lander_virtual_keyboard/logs"
+$LogsPath = "/opt/lander/server/logs"
 
 Write-Host "Fetching logs information..." -ForegroundColor Yellow
 Write-Host ""
