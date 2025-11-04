@@ -7,6 +7,7 @@ yarn-error.log*
 # Logs
 *.log
 logs/
+!**/logs/*.py  # BUT include Python scripts in logs directories
 
 # OS
 .DS_Store
