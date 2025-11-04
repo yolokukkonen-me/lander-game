@@ -29,20 +29,10 @@ $LogsPath = "/opt/lander/examples/50-lander_virtual_keyboard/logs"
 Write-Host "Fetching logs information..." -ForegroundColor Yellow
 Write-Host ""
 
-# Build remote command - use simple approach without complex quoting
-$Result = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" @"
-cd $LogsPath 2>/dev/null || { echo LOGS_DIR_NOT_FOUND; exit 1; }
-echo '=== LOGS STATISTICS ==='
-echo 'Total segments:' `$(ls success_segment_*.json 2>/dev/null | wc -l)
-echo 'Total size:' `$(du -sh . 2>/dev/null | cut -f1)
-echo 'Oldest:' `$(ls -t success_segment_*.json 2>/dev/null | tail -1)
-echo 'Newest:' `$(ls -t success_segment_*.json 2>/dev/null | head -1)
-echo ''
-echo '=== LAST 15 SEGMENTS ==='
-ls -lht success_segment_*.json 2>/dev/null | head -15
-"@ 2>&1
+# Execute commands via SSH - each command separately
+$CheckDir = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "test -d $LogsPath && echo EXISTS || echo NOT_FOUND" 2>&1
 
-if ($Result -match "LOGS_DIR_NOT_FOUND") {
+if ($CheckDir -match "NOT_FOUND") {
     Write-Host "LOGS DIRECTORY NOT FOUND!" -ForegroundColor Red
     Write-Host "Expected path: $LogsPath" -ForegroundColor Yellow
     Write-Host ""
@@ -50,8 +40,24 @@ if ($Result -match "LOGS_DIR_NOT_FOUND") {
     exit 1
 }
 
-# Display results
-Write-Host $Result
+Write-Host "=== LOGS STATISTICS ===" -ForegroundColor Cyan
+
+$TotalCount = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "cd $LogsPath && ls success_segment_*.json 2>/dev/null | wc -l" 2>&1
+Write-Host "Total segments: $TotalCount" -ForegroundColor Green
+
+$TotalSize = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "cd $LogsPath && du -sh . 2>/dev/null | cut -f1" 2>&1
+Write-Host "Total size: $TotalSize" -ForegroundColor Green
+
+$Oldest = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "cd $LogsPath && ls -t success_segment_*.json 2>/dev/null | tail -1" 2>&1
+Write-Host "Oldest: $Oldest" -ForegroundColor Yellow
+
+$Newest = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "cd $LogsPath && ls -t success_segment_*.json 2>/dev/null | head -1" 2>&1
+Write-Host "Newest: $Newest" -ForegroundColor Yellow
+
+Write-Host ""
+Write-Host "=== LAST 15 SEGMENTS ===" -ForegroundColor Cyan
+$FileList = & 'C:\Windows\System32\OpenSSH\ssh.exe' -i $KeyPath "$User@$Server" "cd $LogsPath && ls -lht success_segment_*.json 2>/dev/null | head -15" 2>&1
+Write-Host $FileList
 Write-Host ""
 
 # Show detailed info for specific file if requested
