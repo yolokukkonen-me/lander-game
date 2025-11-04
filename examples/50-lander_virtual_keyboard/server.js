@@ -33,8 +33,8 @@ var Server = IgeClass.extend({
 		.box2d.start();
 
 	// Add the networking component
-	// Port priority: 1) Environment variable, 2) Local dev default (3002)
-	var serverPort = process.env.GAME_SERVER_PORT || 3002;
+	// Port priority: 1) Environment variable, 2) Local dev default (3030)
+	var serverPort = process.env.GAME_SERVER_PORT || 3030;
 	ige.addComponent(IgeNetIoComponent)
 		// Start the network server
 		.network.start(serverPort, function () {
@@ -61,6 +61,9 @@ var Server = IgeClass.extend({
 					
 					// God mode toggle command
 					ige.network.define('toggleGodMode', self._onToggleGodMode);
+					
+					// Player logging toggle command (для обучения бота)
+					ige.network.define('togglePlayerLogging', self._onTogglePlayerLogging);
 
 					ige.network.on('connect', self._onPlayerConnect);
 						ige.network.on('disconnect', self._onPlayerDisconnect);

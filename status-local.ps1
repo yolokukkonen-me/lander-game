@@ -55,7 +55,7 @@ if ($processes) {
     Write-Host "Server Status: RUNNING" -ForegroundColor Green
     
     # Check port
-    $port = if ($savedProcess) { $savedProcess.Port } else { 3002 }
+    $port = if ($savedProcess) { $savedProcess.Port } else { 3030 }
     $portInUse = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     
     if ($portInUse) {
@@ -88,7 +88,3 @@ Write-Host "  Start:   .\start-local.ps1" -ForegroundColor Gray
 Write-Host "  Stop:    .\stop-local.ps1" -ForegroundColor Gray
 Write-Host "  Restart: .\restart-local.ps1" -ForegroundColor Gray
 Write-Host ""
-
-Write-Host "" -ForegroundColor Cyan
-Write-Host "Press any key to close..." -ForegroundColor Yellow
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

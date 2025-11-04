@@ -4,7 +4,7 @@
 # Usage: .\start-local.ps1
 
 param(
-    [int]$Port = 3002
+    [int]$Port = 3030
 )
 
 $ErrorActionPreference = "Stop"

@@ -16,6 +16,9 @@ var Client = IgeClass.extend({
 
 		// Implement our network events
 		self.implement(ClientNetworkEvents);
+		
+		// Setup keyboard shortcuts (L, I, G)
+		self.setupKeyboard();
 
 		// Implement our externally declared methods
 		self.implement(ClientWorld);
@@ -37,17 +40,17 @@ var Client = IgeClass.extend({
 			// Create the HTML canvas
 			ige.createFrontBuffer(true);
 
-		// Start the networking (connect to server)
-		// For production (51.250.30.92): use origin (Nginx proxy on port 80/443)
-		// For local dev (localhost): use port 3002 directly
-		var serverUrl;
-		if (window.location.hostname === '51.250.30.92') {
-			// Production: connect through Nginx
-			serverUrl = window.location.origin;
-		} else {
-			// Local development: connect directly to Node.js on port 3002
-			serverUrl = 'http://' + window.location.hostname + ':3002';
-		}
+	// Start the networking (connect to server)
+	// For production (51.250.30.92): use origin (Nginx proxy on port 80/443)
+	// For local dev (localhost): use port 3030 directly
+	var serverUrl;
+	if (window.location.hostname === '51.250.30.92') {
+		// Production: connect through Nginx
+		serverUrl = window.location.origin;
+	} else {
+		// Local development: connect directly to Node.js on port 3030
+		serverUrl = 'http://' + window.location.hostname + ':3030';
+	}
 		ige.network.start(serverUrl, function () {
 			// Setup the network command listeners
 			ige.network.define('playerEntity', self._onPlayerEntity);
